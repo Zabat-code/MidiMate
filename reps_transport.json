@@ -1,0 +1,7 @@
+[
+  ["// src/controls/transport.js - Eventos de transporte (botones)", "// src/controls/transport.js - Transport events (buttons)"],
+  ["// ===== PANTALLA COMPLETA =====", "// ===== FULLSCREEN ====="],
+  ["// ===== INICIALIZAR EVENTOS =====", "// ===== INITIALIZE EVENTS ====="],
+  ["  // Progress bar - click y arrastre", "  // Progress bar - click and drag"],
+  ["  // Inicializar tempo desde config", "  // Initialize tempo from config"]
+]

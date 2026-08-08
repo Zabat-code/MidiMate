@@ -1,0 +1,4 @@
+[
+  ["// src/ui/canvas.js - Canvas y contextos", "// src/ui/canvas.js - Canvas and contexts"],
+  ["// También se necesita reajustar en cambios de orientación o zoom", "// Also needs resizing on orientation or zoom changes"]
+]

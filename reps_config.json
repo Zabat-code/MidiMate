@@ -1,0 +1,5 @@
+[
+  ["// src/config.js - Configuración y persistencia", "// src/config.js - Configuration and persistence"],
+  ["      // Asegurarse de que trackSettings y playlist estén actualizados", "      // Make sure trackSettings and playlist are up to date"],
+  ["      console.warn('No se pudo guardar la configuración:', e);", "      console.warn('Could not save configuration:', e);"]
+]

@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Piano</title>
+  <link rel="stylesheet" href="/src/style.css" />
+</head>
+<body>
+
+  <!-- ===== CONTENEDORES (igual que la OG) ===== -->
+  <div id="bgColorLayer"></div>
+  <div id="bgLayer0" class="bg-media-layer"></div>
+  <div id="bgLayer1" class="bg-media-layer"></div>
+  <div id="bgLayer2" class="bg-media-layer"></div>
+
+  <header>
+    <h1><span class="mark">♪</span><span id="logoLabel"></span></h1>
+    <div class="controls" id="headerControls">
+      <input type="file" id="midiFile" accept=".mid,.midi" style="display:none" multiple>
+      <button id="btnPlaylistPrev" class="icon-square" data-ctrl="playlistPrev" title="Pista anterior" disabled>⏮</button>
+      <button id="btnPlaylistNext" class="icon-square" data-ctrl="playlistNext" title="Siguiente pista" disabled>⏭</button>
+      <button id="btnRewind" class="icon-square" data-ctrl="transport" title="-5s" disabled>⏪</button>
+      <button id="btnPlay" class="primary icon-square" data-ctrl="play" disabled>▶</button>
+      <button id="btnStop" class="icon-square" data-ctrl="transport" title="Stop" disabled>⏹</button>
+      <button id="btnForward" class="icon-square" data-ctrl="transport" title="+5s" disabled>⏩</button>
+      <button id="btnLoop" class="icon-square" data-ctrl="loop" title="Loop">🔁</button>
+      <button id="btnPlaylist" class="icon-square" data-ctrl="playlist" title="Playlist">📋</button>
+      <select id="midiIn" data-ctrl="midiIn" title="MIDI"><option value="" data-i18n="noMidiDevice">Sin dispositivo MIDI</option></select>
+      <label class="chip" data-ctrl="tempo" title="Velocidad"><span class="tempo-icon">⏱</span> <input type="range" id="tempo" min="25" max="300" value="100"> <input type="number" id="tempoNum" min="25" max="300" value="100" style="width:52px;">%</label>
+      <label class="chip" data-ctrl="volume"><span id="volIcon">🔊</span> <input type="range" id="volume" min="0" max="300" value="80"> <input type="number" id="volumeNum" min="0" max="300" value="80" style="width:52px;">%</label>
+      <button id="btnFullscreen" class="icon-square" data-ctrl="fullscreen" title="Fullscreen">⛶</button>
+      <button id="btnRecordToggle" class="icon-square" title="Grabar video (R)">⏺</button>
+      <span id="recordingIndicator" style="display:none; align-items:center; gap:6px; color:#ff5555; font-size:12px; font-weight:700;">
+        <span style="width:9px; height:9px; border-radius:50%; background:#ff5555; animation:recordPulse 1s infinite;"></span>
+        <span id="recordingTimer">00:00</span>
+      </span>
+    </div>
+  </header>
+
+  <div id="progressWrap" data-flagctrl="progressBar">
+    <div id="progressFill"></div>
+    <div id="progressHandle"></div>
+    <span id="timeRemaining">-0:00</span>
+  </div>
+
+  <main>
+    <div id="staffWrap">
+      <canvas id="staffCanvas"></canvas>
+      <div id="freeLabel" style="display:none;"></div>
+      <div id="staffResizeHandle" title="Arrastra para cambiar el tamaño"></div>
+    </div>
+    <div id="rollWrap">
+      <canvas id="rollCanvas"></canvas>
+      <div class="accuracy-badge" id="accBadge" style="display:none;"></div>
+      <div class="chord-badge" id="chordBadge" style="display:none;"></div>
+      <div id="countInOverlay" class="hidden"></div>
+      <div id="centerAnnounce" class="hidden"></div>
+    </div>
+    <div id="keysWrap"><canvas id="keysCanvas"></canvas></div>
+  </main>
+
+  <div id="toast"></div>
+  <div id="floatSettings" title="Settings">⚙</div>
+
+  <div id="modePromptModal">
+    <div id="modePromptCard">
+      <h3 data-i18n="modePromptTitle">¿Cómo quieres usar este MIDI?</h3>
+      <div class="row">
+        <button id="modePromptPractice" data-i18n="modePractice">Practicar</button>
+        <button id="modePromptWatch" data-i18n="modeWatch">Ver</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="onboardingModal">
+    <div id="onboardingCard">
+      <div id="onboardingIcon" style="font-size:40px; text-align:center; margin-bottom:8px;"></div>
+      <h3 id="onboardingTitle" style="text-align:center;"></h3>
+      <p id="onboardingBody" style="text-align:center; color:var(--ivory-dim); font-size:13px; line-height:1.5;"></p>
+      <div id="onboardingDots" style="display:flex; justify-content:center; gap:6px; margin:12px 0;"></div>
+      <div class="row" style="justify-content:space-between; align-items:center;">
+        <button id="onboardingSkip" style="background:transparent; border:none; color:var(--ivory-dim); font-size:12px;">Saltar</button>
+        <button id="onboardingNext" class="primary"></button>
+      </div>
+    </div>
+  </div>
+
+  <div id="drawer">
+    <div id="drawerInner">
+      <div id="modeTabs" class="mode-tabs"></div>
+      <button id="drawerClose" title="Close">✕</button>
+
+      <!-- ===== GENERAL ===== -->
+      <div class="settings-group" data-group="general">
+        <button class="group-header" data-group-toggle="general"><span class="group-icon">🌐</span><span data-i18n="groupGeneral">groupGeneral</span><span class="group-icon-end">🌐</span><span class="group-chevron">▸</span></button>
+        <div class="group-body" id="groupBody-general">
+          <h2 data-i18n="sectionGeneral">General</h2>
+          <div class="subtle-field">
+            <span data-i18n="drawerLayoutLabel">Diseño de la pantalla de ajustes</span>
+            <select id="drawerLayoutSelect">
+              <option value="fullscreen" data-i18n="layoutFullscreen">Pantalla completa</option>
+              <option value="sidebar" data-i18n="layoutSidebar">Panel lateral</option>
+            </select>
+          </div>
+          <div class="subtle-field">
+            <span data-i18n="language">Idioma</span>
+            <select id="langSelect">
+              <option value="es">Español</option>
+              <option value="en">English</option>
+            </select>
+          </div>
+          <div class="subtle-field">
+            <span data-i18n="toastDuration">Duración del aviso (segundos)</span>
+            <input type="range" id="toastDurationInput" min="1" max="15" value="5">
+            <span class="value" id="toastDurationVal">5s</span>
+          </div>
+
+          <h2 data-i18n="sectionMode">Modo de uso</h2>
+          <div class="subtle-field" style="font-size:11px; color:var(--ivory-dim);">Elige el modo arriba (pestañas). Libre = tocas en vivo; Ver = miras la canción; Practicar = estudias con feedback.</div>
+          <div class="subtle-field">
+            <span data-i18n="loadMidiLabel">Archivo</span>
+            <button id="btnLoad" data-i18n="loadBtn" style="align-self:flex-start;">Cargar MIDI</button>
+          </div>
+          <div class="subtle-field">
+            <span data-i18n="freeDisplayLabel">Modo Libre: mostrar como</span>
+            <select id="freeDisplaySelect">
+              <option value="text" data-i18n="freeDisplayText">Texto grande</option>
+              <option value="staff" data-i18n="freeDisplayStaff">Partitura real</option>
+            </select>
+          </div>
+
+          <h2 data-i18n="sectionCountIn">Cuenta regresiva</h2>
+          <div class="flag-row">
+            <div class="label" data-i18n="countInEnable">Activar cuenta regresiva antes de reproducir</div>
+            <label class="switch"><input type="checkbox" id="countInEnable"><span class="slider"></span></label>
+          </div>
+          <div class="flag-row">
+            <div class="label" data-i18n="countInAudio">Sonido durante la cuenta regresiva</div>
+            <label class="switch"><input type="checkbox" id="countInAudio"><span class="slider"></span></label>
+          </div>
+
+          <h2 data-i18n="sectionAnnounce">Aviso central</h2>
+          <div class="flag-row">
+            <div class="label" data-i18n="announceEnable">Mostrar aviso al cargar un MIDI</div>
+            <label class="switch"><input type="checkbox" id="announceEnable"><span class="slider"></span></label>
+          </div>
+          <div class="subtle-field">
+            <span data-i18n="announceTextLabel">Texto (vacío = nombre del archivo)</span>
+            <input type="text" id="announceTextInput" placeholder="">
+          </div>
+          <div class="subtle-field">
+            <span data-i18n="announceFontLabel">Fuente</span>
+            <select id="announceFontSelect">
+              <option value="display" data-i18n="fontDisplay">Elegante (serif)</option>
+              <option value="body" data-i18n="fontBody">Moderna (sans-serif)</option>
+              <option value="mono">Monoespaciada</option>
+            </select>
+          </div>
+          <div class="subtle-field">
+            <span data-i18n="announceSizeLabel">Tamaño</span>
+            <input type="range" id="announceSizeInput" min="16" max="80" value="32">
+            <span class="value" id="announceSizeVal">32px</span>
+          </div>
+          <div class="subtle-field">
+            <span data-i18n="announceColorLabel">Color del texto</span>
+            <input type="color" id="announceColorInput" value="#f2ead9">
+          </div>
+          <div class="subtle-field">
+            <span data-i18n="sectionNoteNaming">Sistema de nombres de nota</span>
+            <select id="noteNamingSelect">
+              <option value="en" data-i18n="noteNamingEn">Inglés (C D E)</option>
+              <option value="latin" data-i18n="noteNamingLatin">Latino (Do Re Mi)</option>
+              <option value="de" data-i18n="noteNamingDe">Alemán (C D E, H)</option>
+            </select>
+          </div>
+          <div class="subtle-field" data-i18n="shortcutsHint" style="font-size:11px;">Atajos: Espacio reproducir/pausar · ← / → retroceder/adelantar 5s · F pantalla completa · M silenciar</div>
+
+          <div class="subtle-field" style="margin-top:12px; border-top:1px solid var(--line); padding-top:12px;">
+            <button id="btnReporte">📄 Generar reporte de funciones (TXT)</button>
+            <span style="font-size:10px; color:var(--ivory-dim);">Descarga un archivo con el listado de todas las funciones de la app, además de los errores registrados en esta sesión.</span>
+          </div>
+          <div class="subtle-field" style="margin-top:8px;">
+            <button id="btnFactoryReset" style="background:#5e2a2a; color:#f2d9d9;">🗑️ Restablecer todo</button>
+            <span style="font-size:10px; color:var(--ivory-dim);">Borra toda la configuración guardada (temas, atajos, playlist, ajustes) y recarga la página con los valores de fábrica.</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== BACKGROUND ===== -->
+      <div class="settings-group" data-group="background" data-modes="watch,practice">
+        <button class="group-header" data-group-toggle="background"><span class="group-icon">🖼️</span><span data-i18n="groupBackground">groupBackground</span><span class="group-icon-end">🖼️</span><span class="group-chevron">▸</span></button>
+        <div class="group-body" id="groupBody-background">
+          <h2 data-i18n="sectionBackground">Fondo</h2>
+          <div class="subtle-field">
+            <span data-i18n="baseColor">Color base</span>
+            <input type="color" id="bgColorInput" value="#14121f">
+          </div>
+          <div style="font-size:11px; color:var(--ivory-dim); margin:6px 0;" data-i18n="bgLayersHint">
+            Hasta 3 capas simultáneas (imagen, GIF o video). Los archivos más cortos que la canción se repiten en bucle. Puedes moverlas libremente, sin que tengan que encajar en las esquinas.
+          </div>
+          <div id="bgLayersPanel"></div>
+          <div class="subtle-field">
+            <button id="btnHarmonize" data-i18n="harmonizeBtn">Combinar colores con la imagen</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== APPEARANCE ===== -->
+      <div class="settings-group" data-group="appearance">
+        <button class="group-header" data-group-toggle="appearance"><span class="group-icon">🎨</span><span data-i18n="groupAppearance">groupAppearance</span><span class="group-icon-end">🎨</span><span class="group-chevron">▸</span></button>
+        <div class="group-body" id="groupBody-appearance">
+          <h2 data-i18n="sectionColorTheme">Tema de color</h2>
+          <div class="subtle-field">
+            <select id="colorThemeSelect">
+              <option value="brass" data-i18n="themeBrass">Latón (por defecto)</option>
+              <option value="ocean" data-i18n="themeOcean">Océano</option>
+              <option value="rose" data-i18n="themeRose">Rosa</option>
+              <option value="emerald" data-i18n="themeEmerald">Esmeralda</option>
+              <option value="mono" data-i18n="themeMono">Monocromo</option>
+              <option value="custom" id="customThemeOption" data-i18n="themeCustom" style="display:none;">Personalizado (imagen)</option>
+            </select>
+          </div>
+
+          <h2 data-i18n="sectionSkins">Estilos (skins)</h2>
+          <div class="subtle-field">
+            <span data-i18n="keySkinLabel">Diseño de las teclas</span>
+            <select id="keySkinSelect">
+              <option value="classic" data-i18n="skinClassic">Clásico</option>
+              <option value="flat" data-i18n="skinFlat">Plano</option>
+              <option value="neon" data-i18n="skinNeon">Neón</option>
+              <option value="harmonize" data-i18n="skinHarmonize">Armonizado con la imagen</option>
+              <option value="chroma">Chroma (color por nota)</option>
+            </select>
+          </div>
+          <div class="subtle-field">
+            <span data-i18n="tileSkinLabel">Diseño de los tides</span>
+            <select id="tileSkinSelect">
+              <option value="classic" data-i18n="skinClassic">Clásico</option>
+              <option value="glow" data-i18n="skinGlow">Resplandor</option>
+              <option value="outline" data-i18n="skinOutline">Contorno</option>
+              <option value="chroma" data-i18n="skinChroma">Color por nota (chroma)</option>
+              <option value="tracks">Color por pista</option>
+            </select>
+          </div>
+          <div class="subtle-field">
+            <span data-i18n="keyFxStyleLabel">Efecto al tocar</span>
+            <select id="keyFxStyleSelect">
+              <option value="flash" data-i18n="fxFlash">Destello</option>
+              <option value="sparks" data-i18n="fxSparks">Chispas</option>
+              <option value="smoke" data-i18n="fxSmoke">Humo</option>
+              <option value="fire" data-i18n="fxFire">Fuego</option>
+              <option value="bubbles" data-i18n="fxBubbles">Burbujas</option>
+              <option value="lightning" data-i18n="fxLightning">Relámpago</option>
+              <option value="explosion">Explosión</option>
+              <option value="wave">Onda</option>
+              <option value="rain">Lluvia de estrellas</option>
+            </select>
+          </div>
+
+          <div class="subtle-field">
+            <span data-i18n="settingsBgColorLabel">Color de fondo de esta pantalla de ajustes</span>
+            <input type="color" id="settingsBgColorInput" value="#1c1930">
+          </div>
+          <div class="subtle-field">
+            <span data-i18n="panelColorLabel">Color secundario (paneles/tarjetas)</span>
+            <input type="color" id="panelColorInput" value="#211d38">
+          </div>
+          <div class="subtle-field">
+            <span data-i18n="staffNoteColorLabel">Color de las notas en la partitura</span>
+            <input type="color" id="staffNoteColorInput" value="#f2ead9">
+          </div>
+          <div class="subtle-field">
+            <span data-i18n="staffBgColorLabel">Color de fondo de la partitura</span>
+            <input type="color" id="staffBgColorInput" value="#1c1930">
+          </div>
+
+          <h2 data-i18n="sectionKeyCount">Teclado visible</h2>
+          <div class="subtle-field">
+            <span data-i18n="keyCountLabel">Cantidad de teclas en pantalla</span>
+            <select id="keyCountSelect">
+              <option value="auto" data-i18n="keyCountAuto">Automático (según el MIDI)</option>
+              <option value="13">13</option>
+              <option value="22">22</option>
+              <option value="44">44</option>
+              <option value="88">88</option>
+            </select>
+          </div>
+
+          <h2 data-i18n="sectionCtrlVis">Controles visibles (barra superior)</h2>
+          <div id="ctrlVisList"></div>
+
+          <h2 data-i18n="sectionFlags">Funciones</h2>
+          <div id="flagsList"></div>
+          <div class="subtle-field">
+            <span data-i18n="mouseHideDelayLabel">Segundos antes de ocultar el mouse</span>
+            <input type="range" id="mouseHideDelayInput" min="1" max="10" step="0.5" value="2.5">
+            <span class="value" id="mouseHideDelayVal">2.5s</span>
+          </div>
+          <div class="subtle-field">
+            <span data-i18n="sectionLevels">Nivel de dificultad</span>
+            <select id="difficultyLevelSelect">
+              <option value="beginner" data-i18n="levelBeginner">Principiante</option>
+              <option value="intermediate" data-i18n="levelIntermediate">Intermedio</option>
+              <option value="advanced" data-i18n="levelAdvanced">Avanzado</option>
+            </select>
+            <span style="font-size:10px; color:var(--ivory-dim);" data-i18n="levelHint">Ajusta rango de teclas, velocidad y lookahead según el nivel.</span>
+          </div>
+
+          <h2 data-i18n="sectionFlags">Funciones avanzadas</h2>
+          <div class="flag-row">
+            <div class="label" data-i18n="flagPerspective3D">Perspectiva 3D</div>
+            <label class="switch"><input type="checkbox" id="perspective3DEnable"><span class="slider"></span></label>
+          </div>
+          <div class="subtle-field">
+            <span data-i18n="perspectiveDepthLabel">Profundidad 3D</span>
+            <input type="range" id="perspectiveDepthInput" min="0" max="100" value="30">
+            <span class="value" id="perspectiveDepthVal">30%</span>
+          </div>
+          <div class="flag-row">
+            <div class="label" data-i18n="flagBpmPulse">Pulso visual BPM</div>
+            <label class="switch"><input type="checkbox" id="bpmPulseEnable"><span class="slider"></span></label>
+          </div>
+          <div class="subtle-field">
+            <span data-i18n="pulseIntensityLabel">Intensidad del pulso</span>
+            <input type="range" id="pulseIntensityInput" min="0" max="100" value="60">
+            <span class="value" id="pulseIntensityVal">60%</span>
+          </div>
+          <div class="flag-row">
+            <div class="label" data-i18n="flagDynamicCamera">Cámara dinámica</div>
+            <label class="switch"><input type="checkbox" id="dynamicCameraEnable"><span class="slider"></span></label>
+          </div>
+          <div class="subtle-field">
+            <span data-i18n="cameraSmoothingLabel">Suavizado de cámara</span>
+            <input type="range" id="cameraSmoothingInput" min="1" max="20" value="8">
+            <span class="value" id="cameraSmoothingVal">8%</span>
+          </div>
+          <div class="flag-row">
+            <div class="label" data-i18n="flagShowChordNames">Mostrar nombres de acorde</div>
+            <label class="switch"><input type="checkbox" id="showChordNamesEnable"><span class="slider"></span></label>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== BUTTONS ===== -->
+      <div class="settings-group" data-group="buttons">
+        <button class="group-header" data-group-toggle="buttons"><span class="group-icon">⌨️</span><span data-i18n="groupButtons">groupButtons</span><span class="group-icon-end">⌨️</span><span class="group-chevron">▸</span></button>
+        <div class="group-body" id="groupBody-buttons">
+          <h2 data-i18n="sectionKeymap">Teclado de PC</h2>
+          <div style="font-size:11px; color:var(--ivory-dim); margin-bottom:4px;" data-i18n="keymapHint">
+            Haz clic en "Reasignar", luego presiona la tecla física que quieras usar para esa nota.
+          </div>
+          <div id="keymapList"></div>
+          <button id="btnResetKeymap" data-i18n="resetDefault" style="margin-top:8px;">Restablecer por defecto</button>
+
+          <h2 data-i18n="sectionShortcuts">Atajos de teclado</h2>
+          <div id="shortcutsList"></div>
+        </div>
+      </div>
+
+      <!-- ===== PLAYLIST ===== -->
+      <div class="settings-group" data-group="playlist">
+        <button class="group-header" data-group-toggle="playlist"><span class="group-icon">📋</span><span data-i18n="groupPlaylist">groupPlaylist</span><span class="group-icon-end">📋</span><span class="group-chevron">▸</span></button>
+        <div class="group-body" id="groupBody-playlist">
+          <h2 data-i18n="sectionPlaylist">Lista de reproducción</h2>
+          <button id="btnAddToPlaylist" style="align-self:flex-start; margin-bottom:6px;">➕ Añadir a lista</button>
+          <div id="playlistContainer" style="background: rgba(0,0,0,0.2); border-radius: 6px; padding: 8px; max-height: 300px; overflow-y: auto;"></div>
+          <div style="font-size:11px; color:var(--ivory-dim); margin:6px 0;" data-i18n="playlistReorderHint">
+            Arrastra las pistas o usa los botones ▲/▼ para cambiar el orden de reproducción.
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== EXPORTAR VIDEO ===== -->
+      <div class="settings-group" data-group="export" data-modes="watch,practice">
+        <button class="group-header" data-group-toggle="export"><span class="group-icon">🎬</span><span data-i18n="groupExport">Exportar video</span><span class="group-icon-end">🎬</span><span class="group-chevron">▸</span></button>
+        <div class="group-body" id="groupBody-export">
+          <h2 data-i18n="sectionExport">Grabar y exportar video</h2>
+          <div style="font-size:11px; color:var(--ivory-dim); margin-bottom:8px;">
+            Elige el formato, presiona ⏺ en la barra superior (o la tecla <b>R</b>), y luego Play para reproducir la canción. Al presionar ⏺ de nuevo (o Stop), el video se descarga solo — compatible con YouTube, Instagram, TikTok y X.
+          </div>
+          <div class="subtle-field">
+            <label for="recordPresetSelect" style="font-size:12px;">Formato / red social</label>
+            <select id="recordPresetSelect"></select>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== AUDIO ===== -->
+      <div class="settings-group" data-group="audio">
+        <button class="group-header" data-group-toggle="audio"><span class="group-icon">🔊</span><span data-i18n="groupAudio">groupAudio</span><span class="group-icon-end">🔊</span><span class="group-chevron">▸</span></button>
+        <div class="group-body" id="groupBody-audio">
+          <h2 data-i18n="sectionSynth">Sintetizador</h2>
+          <div class="flag-row">
+            <div>
+              <div class="label" data-i18n="realisticAudioLabel">Sonido realista (muestras reales, requiere internet)</div>
+              <div class="desc" data-i18n="realisticAudioDesc">Solo para piano/cola/vertical/clavecín/eléctrico, violín, guitarra acústica y flauta. Pesa más y tarda un instante en cargar cada nota la primera vez.</div>
+            </div>
+            <label class="switch"><input type="checkbox" id="realisticAudioToggle"><span class="slider"></span></label>
+          </div>
+          <div class="subtle-field">
+            <button id="btnAnalyzeMidi" style="align-self:flex-start;" data-i18n="analyzeMidiBtn">Analizar MIDI y optimizar sonido</button>
+            <span style="font-size:11px; color:var(--ivory-dim);" data-i18n="analyzeMidiHint">Ajusta automáticamente instrumento y ecualizador según la canción cargada.</span>
+          </div>
+          <div class="subtle-field">
+            <span data-i18n="bassAmountLabel">Cuerpo / graves del piano</span>
+            <input type="range" id="bassAmountInput" min="0" max="100" value="30">
+            <span class="value" id="bassAmountVal">30%</span>
+          </div>
+          <div class="subtle-field">
+            <span data-i18n="soundSource">Fuente de sonido</span>
+            <select id="synthPreset">
+              <optgroup label="Piano" data-i18n-label="groupPiano">
+                <option value="piano" data-i18n="synthPiano">Piano sintetizado</option>
+                <option value="grand" data-i18n="synthGrand">Piano de cola</option>
+                <option value="upright" data-i18n="synthUpright">Piano vertical</option>
+                <option value="harpsichord" data-i18n="synthHarpsichord">Clavecín</option>
+                <option value="epiano" data-i18n="synthEpiano">Piano eléctrico</option>
+              </optgroup>
+              <optgroup label="Cuerdas" data-i18n-label="groupStrings">
+                <option value="violin" data-i18n="synthViolin">Violín</option>
+                <option value="viola" data-i18n="synthViola">Viola</option>
+                <option value="cello" data-i18n="synthCello">Cello</option>
+                <option value="contrabass" data-i18n="synthContrabass">Contrabajo</option>
+                <option value="guitarClassical" data-i18n="synthGuitarClassical">Guitarra española</option>
+                <option value="guitarAcoustic" data-i18n="synthGuitarAcoustic">Guitarra acústica</option>
+                <option value="guitarElectric" data-i18n="synthGuitarElectric">Guitarra eléctrica</option>
+                <option value="musicBox" data-i18n="synthMusicBox">Caja musical</option>
+              </optgroup>
+              <optgroup label="Percusión" data-i18n-label="groupPercussion">
+                <option value="perc1" data-i18n="synthPerc1">Percusión 1 (caja)</option>
+                <option value="perc2" data-i18n="synthPerc2">Percusión 2 (tambor)</option>
+                <option value="perc3" data-i18n="synthPerc3">Percusión 3 (platillo)</option>
+                <option value="timpani" data-i18n="synthTimpani">Tímpani</option>
+              </optgroup>
+              <optgroup label="Vientos" data-i18n-label="groupWinds">
+                <option value="flute" data-i18n="synthFlute">Flauta</option>
+                <option value="saxophone" data-i18n="synthSax">Saxofón</option>
+                <option value="ocarina" data-i18n="synthOcarina">Ocarina</option>
+                <option value="clarinet" data-i18n="synthClarinet">Clarinete</option>
+                <option value="oboe" data-i18n="synthOboe">Oboe</option>
+                <option value="bassoon" data-i18n="synthBassoon">Fagot</option>
+              </optgroup>
+              <optgroup label="Metales" data-i18n-label="groupBrass">
+                <option value="brass1" data-i18n="synthBrass1">Metales 1 (trompeta)</option>
+                <option value="brass2" data-i18n="synthBrass2">Metales 2 (trombón)</option>
+                <option value="brass3" data-i18n="synthBrass3">Metales 3 (corno)</option>
+                <option value="tuba" data-i18n="synthTuba">Tuba</option>
+              </optgroup>
+              <optgroup label="Otros" data-i18n-label="groupOther">
+                <option value="organ" data-i18n="synthOrgan">Órgano</option>
+                <option value="pad" data-i18n="synthPad">Pad suave</option>
+                <option value="bell" data-i18n="synthBell">Campana</option>
+                <option value="sample" data-i18n="synthSample">Muestra local (archivo de audio)</option>
+              </optgroup>
+            </select>
+          </div>
+          <div class="subtle-field" id="sampleFields" style="display:none;">
+            <span data-i18n="sampleFileLabel">Archivo de muestra (una nota grabada)</span>
+            <input type="file" id="sampleInput" accept="audio/*">
+            <span data-i18n="sampleNoteLabel">Nota de la muestra (afinación base)</span>
+            <select id="sampleBaseNote"></select>
+          </div>
+
+          <h2 data-i18n="sectionMetronome">Metrónomo</h2>
+          <div class="flag-row">
+            <div class="label" data-i18n="metronomeEnable">Activar metrónomo</div>
+            <label class="switch"><input type="checkbox" id="metroEnable"><span class="slider"></span></label>
+          </div>
+          <div class="subtle-field">
+            <span data-i18n="metronomeBpm">Tempo del metrónomo (BPM)</span>
+            <input type="range" id="metroBpm" min="40" max="240" value="120">
+            <span class="value" id="metroBpmVal">120 BPM</span>
+          </div>
+
+          <h2 data-i18n="sectionEQ">Ecualizador</h2>
+          <div class="subtle-field">
+            <span data-i18n="eqPresetLabel">Preset</span>
+            <select id="eqPresetSelect">
+              <option value="flat" data-i18n="eqFlat">Plano</option>
+              <option value="rock" data-i18n="eqRock">Rock</option>
+              <option value="classical" data-i18n="eqClassical">Clásica</option>
+              <option value="jazz" data-i18n="eqJazz">Jazz</option>
+              <option value="pop" data-i18n="eqPop">Pop</option>
+              <option value="electronic" data-i18n="eqElectronic">Electrónica</option>
+              <option value="vocal" data-i18n="eqVocal">Realce de piano</option>
+            </select>
+          </div>
+          <div class="subtle-field">
+            <span data-i18n="eqLow">Graves</span>
+            <input type="range" id="eqLowInput" min="-12" max="12" value="0">
+            <span class="value" id="eqLowVal">0dB</span>
+          </div>
+          <div class="subtle-field">
+            <span data-i18n="eqMid">Medios</span>
+            <input type="range" id="eqMidInput" min="-12" max="12" value="0">
+            <span class="value" id="eqMidVal">0dB</span>
+          </div>
+          <div class="subtle-field">
+            <span data-i18n="eqHigh">Agudos</span>
+            <input type="range" id="eqHighInput" min="-12" max="12" value="0">
+            <span class="value" id="eqHighVal">0dB</span>
+          </div>
+
+          <h2 data-i18n="sectionInstruments">Instrumentos por pista</h2>
+          <div style="font-size:11px; color:var(--ivory-dim); margin-bottom:6px;" data-i18n="instrumentsHint">
+            Aparece al cargar un MIDI. Cada pista puede sonar con un instrumento distinto y reproducirse automáticamente o silenciarse.
+            <br><strong>Mezcla por pista:</strong> cada pista tiene su propio volumen, paneo, desafinación, reverb y ecualizador de 3 bandas.
+          </div>
+          <div id="tracksList"></div>
+
+          <h2 data-i18n="sectionEffects">Efectos globales</h2>
+          <div class="global-effects" id="globalEffectsContainer">
+            <div class="row">
+              <label>
+                <input type="checkbox" id="humanizeEnable"> 👤 Humanizar
+                <span class="badge" style="background:#2a3a5e; border-radius:12px; padding:0 8px; font-size:10px;">±<span id="humanizeTimeLabel">15</span>ms · ±<span id="humanizeVelLabel">10</span>%</span>
+              </label>
+              <label>
+                Swing <input type="range" id="swingAmount" min="0" max="100" value="0">
+                <span id="swingValueLabel">0%</span>
+              </label>
+            </div>
+            <div style="font-size:11px; color:var(--ivory-dim); margin-top:4px;">
+              Humanización: añade aleatoriedad al tiempo y velocidad de cada nota (solo en reproducción automática).<br>
+              Swing: retrasa ligeramente las corcheas (notas en tiempos débiles) para dar sensación rítmica.
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>

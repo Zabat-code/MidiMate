@@ -1,0 +1,10 @@
+[
+  ["// src/midi.js - Parser de archivos MIDI", "// src/midi.js - MIDI file parser"],
+  ["  // Validaciones tempranas: un archivo demasiado corto o basura binaria\n  // pueden hacer que el parser lea fuera de rango o se cuelgue leyendo\n  // \"tracks\" gigantes sin sentido. Mejor rechazarlo con un mensaje claro\n  // antes de intentar parsear nada.", "  // Early validation: a file that is too short or is binary garbage can make\n  // the parser read out of range or hang reading meaningless giant \"tracks\".\n  // Better to reject it with a clear message before parsing anything."],
+  ["    throw new Error('No es un archivo MIDI válido (archivo vacío o demasiado corto)');", "    throw new Error('Not a valid MIDI file (empty or too short)');"],
+  ["  if (str(4) !== 'MThd') throw new Error('No es un archivo MIDI válido');", "  if (str(4) !== 'MThd') throw new Error('Not a valid MIDI file');"],
+  ["  if (ntrks > 512) throw new Error('Archivo MIDI corrupto (número de pistas irreal: ' + ntrks + ')');", "  if (ntrks > 512) throw new Error('Corrupt MIDI file (unrealistic track count: ' + ntrks + ')');"],
+  ["    if (offset + 8 > bytes.length) throw new Error('Archivo MIDI corrupto o truncado (falta la pista ' + (t + 1) + ' de ' + ntrks + ')');", "    if (offset + 8 > bytes.length) throw new Error('Corrupt or truncated MIDI file (missing track ' + (t + 1) + ' of ' + ntrks + ')');"],
+  ["    if (str(4) !== 'MTrk') throw new Error('Track MIDI corrupto');", "    if (str(4) !== 'MTrk') throw new Error('Corrupt MIDI track');"],
+  ["    if (trackEnd > bytes.length) throw new Error('Archivo MIDI corrupto o truncado (pista ' + (t + 1) + ' se sale del archivo)');", "    if (trackEnd > bytes.length) throw new Error('Corrupt or truncated MIDI file (track ' + (t + 1) + ' goes past end of file)');"]
+]

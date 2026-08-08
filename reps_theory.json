@@ -1,0 +1,8 @@
+[
+  ["// src/theory.js - Teoría musical: acordes, tonalidad y análisis\n// armónico de la canción completa.", "// src/theory.js - Music theory: chords, key, and harmonic\n// analysis of the whole song."],
+  ["// ===== NOMBRE DE ACORDE A PARTIR DE UN CONJUNTO DE NOTAS =====\n// (misma lógica que ya existía en ui/staff.js, movida aquí para poder\n// reutilizarla también en el análisis de toda la canción)", "// ===== CHORD NAME FROM A SET OF NOTES =====\n// (same logic that already existed in ui/staff.js, moved here so it can\n// also be reused in the analysis of the whole song)"],
+  ["// ===== DETECCIÓN DE TONALIDAD (Krumhansl-Schmuckler simplificado) =====\n// Compara el histograma de clases de altura (pitch classes) de la canción\n// contra los 24 perfiles posibles (12 tonos x mayor/menor) y elige el que\n// mejor correlaciona.", "// ===== KEY DETECTION (simplified Krumhansl-Schmuckler) =====\n// Compares the song's pitch-class histogram against the 24 possible\n// profiles (12 tones x major/minor) and picks the best correlation."],
+  ["  if (!notes || !notes.length) return { tonic: 'C', mode: 'major', label: 'Do mayor' };", "  if (!notes || !notes.length) return { tonic: 'C', mode: 'major', label: 'C major' };"],
+  ["    hist[n.note % 12] += dur; // ponderado por duración: notas largas pesan más", "    hist[n.note % 12] += dur; // weighted by duration: longer notes weigh more"],
+  ["  const modeLabel = best.mode === 'major' ? 'mayor' : 'menor';", "  const modeLabel = best.mode === 'major' ? 'major' : 'minor';"]
+]

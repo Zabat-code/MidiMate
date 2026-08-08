@@ -1,0 +1,10 @@
+[
+  ["// src/ui/keys.js - Dibujo de teclas", "// src/ui/keys.js - Key drawing"],
+  ["  // Usar las dimensiones CSS del canvas (getBoundingClientRect) en lugar de\n  // las internas (canvas.width), que son 2x más grandes por el DPR scaling.\n  // Esto garantiza que las coordenadas de mouse/touch coincidan con las teclas.", "  // Use the canvas CSS dimensions (getBoundingClientRect) instead of the\n  // internal ones (canvas.width), which are 2x larger due to DPR scaling.\n  // This ensures mouse/touch coordinates line up with the keys."],
+  ["  // Usar CFG.keySkin directamente (la variable local keySkin nunca se actualiza)", "  // Use CFG.keySkin directly (the local keySkin variable is never updated)"],
+  ["  // Usar window.pressedKeys directamente (setKeyState nunca se llama)", "  // Use window.pressedKeys directly (setKeyState is never called)"],
+  ["      // Chroma: color de nota, pero al presionar se ilumina (mezcla con blanco)", "      // Chroma: note color, but lights up when pressed (blended with white)"],
+  ["      // Tecla presionada: color dorado brillante muy visible", "      // Pressed key: bright gold, very visible"],
+  ["      // Chroma: tecla negra se ilumina al presionar", "      // Chroma: black key lights up when pressed"],
+  ["      // Tecla negra presionada: dorado brillante muy visible", "      // Pressed black key: bright gold, very visible"]
+]
