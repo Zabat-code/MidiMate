@@ -30,7 +30,7 @@
       <label class="chip" data-ctrl="tempo" title="Velocidad"><span class="tempo-icon">⏱</span> <input type="range" id="tempo" min="25" max="300" value="100"> <input type="number" id="tempoNum" min="25" max="300" value="100" style="width:52px;">%</label>
       <label class="chip" data-ctrl="volume"><span id="volIcon">🔊</span> <input type="range" id="volume" min="0" max="300" value="80"> <input type="number" id="volumeNum" min="0" max="300" value="80" style="width:52px;">%</label>
       <button id="btnFullscreen" class="icon-square" data-ctrl="fullscreen" title="Fullscreen">⛶</button>
-      <button id="btnRecordToggle" class="icon-square" title="Grabar video (R)">⏺</button>
+      <button id="btnRecordToggle" class="icon-square" data-ctrl="record" title="Grabar video (R)">⏺</button>
       <span id="recordingIndicator" style="display:none; align-items:center; gap:6px; color:#ff5555; font-size:12px; font-weight:700;">
         <span style="width:9px; height:9px; border-radius:50%; background:#ff5555; animation:recordPulse 1s infinite;"></span>
         <span id="recordingTimer">00:00</span>
@@ -86,9 +86,11 @@
     </div>
   </div>
 
+  <div id="drawerBackdrop"></div>
   <div id="drawer">
     <div id="drawerInner">
       <div id="modeTabs" class="mode-tabs"></div>
+      <div id="drawerCatTabs" class="drawer-cat-tabs"></div>
       <button id="drawerClose" title="Close">✕</button>
 
       <!-- ===== GENERAL ===== -->
@@ -100,6 +102,7 @@
             <span data-i18n="drawerLayoutLabel">Diseño de la pantalla de ajustes</span>
             <select id="drawerLayoutSelect">
               <option value="fullscreen" data-i18n="layoutFullscreen">Pantalla completa</option>
+              <option value="dynamic" data-i18n="layoutDynamic">Pantalla completa dinámica</option>
               <option value="sidebar" data-i18n="layoutSidebar">Panel lateral</option>
             </select>
           </div>
@@ -199,6 +202,7 @@
           <div style="font-size:11px; color:var(--ivory-dim); margin:6px 0;" data-i18n="bgLayersHint">
             Hasta 3 capas simultáneas (imagen, GIF o video). Los archivos más cortos que la canción se repiten en bucle. Puedes moverlas libremente, sin que tengan que encajar en las esquinas.
           </div>
+          <div id="bgLayerTabs" class="bg-layer-tabs"></div>
           <div id="bgLayersPanel"></div>
           <div class="subtle-field">
             <button id="btnHarmonize" data-i18n="harmonizeBtn">Combinar colores con la imagen</button>
@@ -279,11 +283,10 @@
           <div class="subtle-field">
             <span data-i18n="keyCountLabel">Cantidad de teclas en pantalla</span>
             <select id="keyCountSelect">
-              <option value="auto" data-i18n="keyCountAuto">Automático (según el MIDI)</option>
-              <option value="13">13</option>
-              <option value="22">22</option>
-              <option value="44">44</option>
-              <option value="88">88</option>
+              <option value="opt2" data-i18n="keyCountOpt2">Compacto</option>
+              <option value="opt3" data-i18n="keyCountOpt3">Amplio</option>
+              <option value="opt4" data-i18n="keyCountOpt4">Todas las teclas (88)</option>
+              <option value="opt5" data-i18n="keyCountOpt5">Automático (según el MIDI)</option>
             </select>
           </div>
 
@@ -346,15 +349,21 @@
       <div class="settings-group" data-group="buttons">
         <button class="group-header" data-group-toggle="buttons"><span class="group-icon">⌨️</span><span data-i18n="groupButtons">groupButtons</span><span class="group-icon-end">⌨️</span><span class="group-chevron">▸</span></button>
         <div class="group-body" id="groupBody-buttons">
-          <h2 data-i18n="sectionKeymap">Teclado de PC</h2>
-          <div style="font-size:11px; color:var(--ivory-dim); margin-bottom:4px;" data-i18n="keymapHint">
-            Haz clic en "Reasignar", luego presiona la tecla física que quieras usar para esa nota.
+          <div class="ba-cols">
+            <div class="ba-col">
+              <h2 data-i18n="sectionKeymap">Teclado de PC</h2>
+              <div style="font-size:11px; color:var(--ivory-dim); margin-bottom:4px;" data-i18n="keymapHint">
+                Haz clic en "Reasignar", luego presiona la tecla física que quieras usar para esa nota.
+              </div>
+              <div id="keymapList"></div>
+              <button id="btnResetKeymap" data-i18n="resetDefault" class="ba-reset">Restablecer por defecto</button>
+            </div>
+            <div class="ba-col">
+              <h2 data-i18n="sectionShortcuts">Atajos de teclado</h2>
+              <div id="shortcutsList"></div>
+              <button id="btnResetShortcuts" data-i18n="resetDefault" class="ba-reset">Restablecer atajos por defecto</button>
+            </div>
           </div>
-          <div id="keymapList"></div>
-          <button id="btnResetKeymap" data-i18n="resetDefault" style="margin-top:8px;">Restablecer por defecto</button>
-
-          <h2 data-i18n="sectionShortcuts">Atajos de teclado</h2>
-          <div id="shortcutsList"></div>
         </div>
       </div>
 

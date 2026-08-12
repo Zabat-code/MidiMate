@@ -56,7 +56,7 @@ function layoutRects(w, h, isVertical) {
   // Top header drawn (title + status + timer) so the
   // top of the video isn't empty/weird (the app buttons are HTML,
   // no canvas, y no se graban). Luego staff, rollo y teclado.
-  const headerH = Math.round(h * 0.07);
+  const headerH = Math.round(h * 0.045);
   const staffFrac = isVertical ? 0.11 : 0.16;
   const keysFrac = isVertical ? 0.14 : 0.17;
   const staffH = Math.round((h - headerH) * staffFrac);
@@ -96,25 +96,21 @@ function updateTimer(ctx, rect, preset) {
 }
 
 function drawHeader(rect, preset) {
-  // Top bar: title on the left, REC status on the right.
+  // Barra superior compacta: título a la izquierda, estado REC a la derecha.
   outCtx.fillStyle = '#15131f';
   outCtx.fillRect(rect.x, rect.y, rect.w, rect.h);
   outCtx.fillStyle = '#f2ead9';
-  const fs = Math.max(16, Math.round(rect.h * 0.5));
+  const fs = Math.max(13, Math.round(rect.h * 0.55));
   outCtx.font = `bold ${fs}px sans-serif`;
   outCtx.textBaseline = 'middle';
   outCtx.textAlign = 'left';
-  outCtx.fillText('🎹 Piano', rect.x + fs * 0.6, rect.y + rect.h / 2);
+  outCtx.fillText('🎹 Piano', rect.x + fs * 0.5, rect.y + rect.h / 2);
 
   const status = recording ? '● REC' : (preset ? `● ${preset.w}×${preset.h}` : '●');
   outCtx.fillStyle = recording ? '#ff5555' : '#9aa0b5';
   outCtx.textAlign = 'right';
-  outCtx.fillText(status, rect.x + rect.w - fs * 0.6, rect.y + rect.h / 2);
+  outCtx.fillText(status, rect.x + rect.w - fs * 0.5, rect.y + rect.h / 2);
   outCtx.textAlign = 'left';
-
-  // separador sutil
-  outCtx.fillStyle = '#2a2740';
-  outCtx.fillRect(rect.x, rect.y + rect.h - 2, rect.w, 2);
 }
 
 function drawLayer(src, rect, label) {

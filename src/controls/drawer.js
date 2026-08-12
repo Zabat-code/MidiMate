@@ -10,6 +10,9 @@ import { applyMode, updatePlayButtonLabel, updateLoopButton, song, trackSettings
 import { setupWebMidi } from './keyboard.js';
 import { renderPlaylist } from '../playlist.js';
 import { setEqPreset, analyzeAndOptimizeMidi, populateSampleBaseNoteSelect, EQ_PRESETS } from '../audio.js';
+
+// Guarda el conteo de teclas previo al abrir la categoría "buttons".
+let buttonsPrevKeyCount = null;
 import { initReportButton } from '../report.js';
 
 // ===== TEMAS DE COLOR =====
@@ -63,7 +66,10 @@ export const CTRL_META = {
   volume: 'ctrlVolume',
   fullscreen: 'ctrlFullscreen',
   loop: 'ctrlLoop',
-  playlist: 'ctrlPlaylist'
+  playlist: 'ctrlPlaylist',
+  playlistPrev: 'shortcutPlaylistPrev',
+  playlistNext: 'shortcutPlaylistNext',
+  record: 'shortcutRecordToggle'
 };
 
 // ===== CONSTRUIR PANELES =====
@@ -119,48 +125,66 @@ export function buildCtrlVisPanel() {
   });
 }
 
+// Pestaña de capa de fondo activa.
+let bgLayerActive = 0;
+
 export function buildBgLayersPanel() {
+  const tabsEl = document.getElementById('bgLayerTabs');
   const panel = document.getElementById('bgLayersPanel');
   if (!panel) return;
+  if (bgLayerActive >= CFG.background.layers.length) bgLayerActive = 0;
+  // Tabs (layer1/layer2/layer3)
+  if (tabsEl) {
+    tabsEl.innerHTML = '';
+    CFG.background.layers.forEach((_, idx) => {
+      const tab = document.createElement('button');
+      tab.className = 'bg-layer-tab' + (idx === bgLayerActive ? ' active' : '');
+      tab.textContent = `${t('bgLayerTitle')} ${idx + 1}`;
+      tab.addEventListener('click', () => {
+        bgLayerActive = idx;
+        buildBgLayersPanel();
+      });
+      tabsEl.appendChild(tab);
+    });
+  }
   panel.innerHTML = '';
-  CFG.background.layers.forEach((layer, idx) => {
-    const box = document.createElement('details');
-    box.className = 'bg-layer-box';
-    box.open = idx === 0;
-    const fileLabel = layer.file ? (layer.type === 'video' ? t('bgLayerHasVideo') : t('bgLayerHasImage')) : t('bgLayerEmpty');
-    box.innerHTML = `
-      <summary>${t('bgLayerTitle')} ${idx + 1} <span style="font-weight:400; color:var(--ivory-dim);">(${fileLabel})</span></summary>
-      <div class="subtle-field">
-        <input type="file" data-layer-file="${idx}" accept="image/*,video/mp4,video/webm,video/ogg">
-        <button data-layer-clear="${idx}" style="align-self:flex-start;">${t('removeImage')}</button>
-      </div>
-      <div class="subtle-field">
-        <span>${t('bgLayerOrderLabel')}</span>
-        <select data-layer-order="${idx}">
-          <option value="back">${t('bgOrderBack')}</option>
-          <option value="middle">${t('bgOrderMiddle')}</option>
-          <option value="front">${t('bgOrderFront')}</option>
-        </select>
-      </div>
-      <div class="subtle-field">
-        <span>${t('bgPanXLabel')}</span>
-        <input type="range" data-layer-x="${idx}" min="-50" max="150" value="${layer.x}">
-      </div>
-      <div class="subtle-field">
-        <span>${t('bgPanYLabel')}</span>
-        <input type="range" data-layer-y="${idx}" min="-50" max="150" value="${layer.y}">
-      </div>
-      <div class="subtle-field">
-        <span>${t('bgZoomLabel')}</span>
-        <input type="range" data-layer-zoom="${idx}" min="10" max="300" value="${layer.zoom}">
-      </div>
-      <div class="subtle-field">
-        <span>${t('imageOpacity')}</span>
-        <input type="range" data-layer-opacity="${idx}" min="0" max="100" value="${Math.round(layer.opacity * 100)}">
-      </div>`;
-    box.querySelector(`[data-layer-order="${idx}"]`).value = layer.order;
-    panel.appendChild(box);
-  });
+  const idx = bgLayerActive;
+  const layer = CFG.background.layers[idx];
+  if (!layer) return;
+  const fileLabel = layer.file ? (layer.type === 'video' ? t('bgLayerHasVideo') : t('bgLayerHasImage')) : t('bgLayerEmpty');
+  panel.innerHTML = `
+    <div class="subtle-field">
+      <span>${t('bgLayerTitle')} ${idx + 1} <span style="font-weight:400; color:var(--ivory-dim);">(${fileLabel})</span></span>
+    </div>
+    <div class="subtle-field">
+      <input type="file" data-layer-file="${idx}" accept="image/*,video/mp4,video/webm,video/ogg">
+      <button data-layer-clear="${idx}" style="align-self:flex-start;">${t('removeImage')}</button>
+    </div>
+    <div class="subtle-field">
+      <span>${t('bgLayerOrderLabel')}</span>
+      <select data-layer-order="${idx}">
+        <option value="back">${t('bgOrderBack')}</option>
+        <option value="middle">${t('bgOrderMiddle')}</option>
+        <option value="front">${t('bgOrderFront')}</option>
+      </select>
+    </div>
+    <div class="subtle-field">
+      <span>${t('bgPanXLabel')}</span>
+      <input type="range" data-layer-x="${idx}" min="-50" max="150" value="${layer.x}">
+    </div>
+    <div class="subtle-field">
+      <span>${t('bgPanYLabel')}</span>
+      <input type="range" data-layer-y="${idx}" min="-50" max="150" value="${layer.y}">
+    </div>
+    <div class="subtle-field">
+      <span>${t('bgZoomLabel')}</span>
+      <input type="range" data-layer-zoom="${idx}" min="10" max="300" value="${layer.zoom}">
+    </div>
+    <div class="subtle-field">
+      <span>${t('imageOpacity')}</span>
+      <input type="range" data-layer-opacity="${idx}" min="0" max="100" value="${Math.round(layer.opacity * 100)}">
+    </div>`;
+  panel.querySelector(`[data-layer-order="${idx}"]`).value = layer.order;
 
   // Eventos para capas
   panel.querySelectorAll('[data-layer-file]').forEach(inp => {
@@ -195,8 +219,17 @@ export function buildBgLayersPanel() {
   panel.querySelectorAll('[data-layer-order]').forEach(sel => {
     sel.addEventListener('change', e => {
       const idx = +e.target.dataset.layerOrder;
-      CFG.background.layers[idx].order = e.target.value;
+      const newOrder = e.target.value;
+      // Exclusividad: solo una capa puede ser frente/medio/fondo. Si otra
+      // capa ya tiene este orden, intercambiamos los órdenes.
+      const other = CFG.background.layers.findIndex((l, i) => i !== idx && l.order === newOrder);
+      if (other !== -1) {
+        CFG.background.layers[other].order = CFG.background.layers[idx].order;
+        applyBgLayer(other);
+      }
+      CFG.background.layers[idx].order = newOrder;
       applyBgLayer(idx);
+      buildBgLayersPanel();
       saveConfig();
     });
   });
@@ -263,12 +296,39 @@ export function applyControlVisibility() {
   });
 }
 
+// Mientras la categoría "Button assignment" está abierta, mostramos TODOS los
+// botones de la barra superior (aunque el usuario los haya ocultado) para que
+// pueda ver y parpadear el botón relacionado al reasignar un atajo.
+export function setButtonsForceVisible(force) {
+  document.querySelectorAll('[data-ctrl]').forEach(el => {
+    el.style.display = force ? '' : (CFG.controlVisibility[el.dataset.ctrl] === false ? 'none' : '');
+  });
+}
+
 // ===== DRAWER =====
 export function setDrawerOpen(open) {
   const drawer = document.getElementById('drawer');
   const floatBtn = document.getElementById('floatSettings');
+  const backdrop = document.getElementById('drawerBackdrop');
   if (drawer) drawer.classList.toggle('open', open);
   if (floatBtn) floatBtn.style.display = open ? 'none' : '';
+  // En overlay (pantalla completa) mostramos un velo que bloquea la app:
+  // el usuario no puede interactuar con el teclado mientras el menú está abierto.
+  // En sidebar el velo está oculto para poder tocar el teclado.
+  if (backdrop) backdrop.classList.toggle('open', open && CFG.drawerLayout !== 'sidebar');
+  // Al abrir en sidebar, marcamos el panel como área activa por defecto.
+  if (open && CFG.drawerLayout === 'sidebar') {
+    document.body.classList.add('area-drawer');
+    document.body.classList.remove('area-keyboard');
+  } else if (!open) {
+    document.body.classList.remove('area-drawer', 'area-keyboard');
+  }
+  // En layout sidebar el drawer se monta al lado y desplaza el contenido
+  // (margin-right). Hay que redibujar los canvas al nuevo ancho para que las
+  // teclas se reescalen y se vean completas. La transición es 0.25s.
+  if (CFG.drawerLayout === 'sidebar' && window.resizeCanvases) {
+    setTimeout(() => window.resizeCanvases?.(), 280);
+  }
 }
 
 // ===== ABRIR CATEGORIA =====
@@ -328,7 +388,28 @@ export function initDrawerEvents() {
   document.querySelectorAll('.group-header[data-group-toggle]').forEach(header => {
     header.addEventListener('click', () => {
       const group = header.closest('.settings-group');
-      if (group) group.classList.toggle('open');
+      if (!group) return;
+      const willOpen = !group.classList.contains('open');
+      group.classList.toggle('open');
+      // Al abrir la categoría de asignación de teclas (buttons), mostramos
+      // TODAS las teclas del piano y TODOS los botones de la barra superior
+      // para que el usuario vea dónde cae cada tecla física y parpadee el
+      // botón relacionado al reasignar un atajo; al cerrar, volvemos a su
+      // conteo y visibilidad guardados.
+      if (group.dataset.group === 'buttons') {
+        if (willOpen) {
+          buttonsPrevKeyCount = CFG.visibleKeyCount;
+          CFG.visibleKeyCount = 'opt4';
+          setButtonsForceVisible(true);
+        } else {
+          if (buttonsPrevKeyCount != null) {
+            CFG.visibleKeyCount = buttonsPrevKeyCount;
+            buttonsPrevKeyCount = null;
+          }
+          setButtonsForceVisible(false);
+        }
+        if (window.applyKeyboardRange) window.applyKeyboardRange();
+      }
     });
   });
 
@@ -602,6 +683,30 @@ export function initDrawerEvents() {
 
   syncAdvancedSettingsUI();
   buildModeTabs();
+
+  // Clic en el velo (overlay) cierra el drawer.
+  document.getElementById('drawerBackdrop')?.addEventListener('click', () => {
+    setDrawerOpen(false);
+  });
+
+  // En sidebar: marcar el área que el usuario está usando (teclado o panel),
+  // de modo que solo una quede activa a la vez y se resalte visualmente.
+  const mainEl = document.querySelector('main');
+  const drawerEl = document.getElementById('drawer');
+  if (mainEl) {
+    mainEl.addEventListener('pointerdown', () => {
+      if (!document.body.classList.contains('layout-sidebar')) return;
+      document.body.classList.add('area-keyboard');
+      document.body.classList.remove('area-drawer');
+    });
+  }
+  if (drawerEl) {
+    drawerEl.addEventListener('pointerdown', () => {
+      if (!document.body.classList.contains('layout-sidebar')) return;
+      document.body.classList.add('area-drawer');
+      document.body.classList.remove('area-keyboard');
+    });
+  }
 }
 
 // ===== SINCRONIZAR CONTROLES AVANZADOS CON CFG (al cargar) =====
@@ -631,12 +736,16 @@ export function syncAdvancedSettingsUI() {
 // ===== APPLY DESIGN =====
 export function applyDrawerLayout() {
   document.body.classList.toggle('layout-sidebar', CFG.drawerLayout === 'sidebar');
+  document.body.classList.toggle('layout-dynamic', CFG.drawerLayout === 'dynamic');
   // Forzar height limpio al cambiar de layout (evita bugs de scroll/overflow)
   const drawer = document.getElementById('drawer');
   if (drawer) {
     drawer.style.height = CFG.drawerLayout === 'sidebar' ? '100%' : '';
   }
   applyGroupDefaults();
+  // Re-evaluar el filtro por modo: en layout dinámico se muestran TODAS las
+  // opciones sin importar el modo activo (limpia cualquier hidden-by-mode).
+  applyModeFilter(window.appMode || 'watch');
   // Keep the layout <select> in sync with the actual config so the displayed
   // option matches CFG (otherwise the browser shows the first option while
   // the real layout is different, forcing the user to change it twice).
@@ -648,11 +757,57 @@ export function applyDrawerLayout() {
 
 function applyGroupDefaults() {
   const isSidebar = CFG.drawerLayout === 'sidebar';
-  document.querySelectorAll('.settings-group').forEach(g => {
+  const isDynamic = CFG.drawerLayout === 'dynamic';
+  document.querySelectorAll('.settings-group').forEach((g, i) => {
     const name = g.dataset.group;
-    const shouldOpen = !isSidebar && name !== 'buttons';
+    // En fullscreen las categorías se ven todas (acordeón abierto); en
+    // sidebar solo "general" por defecto; en dynamic se usan pestañas
+    // (todas abiertas, pero solo la activa visible vía CSS .cat-active).
+    const shouldOpen = (isSidebar ? name === 'general' : true);
     g.classList.toggle('open', shouldOpen);
+    if (isDynamic) {
+      g.classList.toggle('cat-active', i === 0);
+    } else {
+      g.classList.remove('cat-active');
+    }
   });
+  buildCategoryTabs();
+  applyDynColumns();
+}
+
+// Pestañas de categorías para el layout "pantalla completa dinámica".
+// Toma el título ya traducido de cada group-header y lo usa como etiqueta.
+function buildCategoryTabs() {
+  const tabsEl = document.getElementById('drawerCatTabs');
+  if (!tabsEl) return;
+  const groups = Array.from(document.querySelectorAll('.settings-group'));
+  tabsEl.innerHTML = '';
+  groups.forEach((g, i) => {
+    const header = g.querySelector('.group-header');
+    const label = header ? header.textContent.replace(/[▸]/g, '').trim() : g.dataset.group;
+    const tab = document.createElement('button');
+    tab.className = 'drawer-cat-tab' + (g.classList.contains('cat-active') ? ' active' : '');
+    tab.textContent = label;
+    tab.addEventListener('click', () => {
+      groups.forEach((gg, j) => gg.classList.toggle('cat-active', j === i));
+      applyDynColumns();
+      buildCategoryTabs();
+    });
+    tabsEl.appendChild(tab);
+  });
+}
+
+// En layout dinámico: si la categoría tiene pocas opciones, una sola columna
+// centrada; si tiene muchas, dos columnas que aprovechan todo el ancho.
+function applyDynColumns() {
+  if (CFG.drawerLayout !== 'dynamic') return;
+  const active = document.querySelector('.settings-group.cat-active');
+  if (!active) return;
+  const body = active.querySelector('.group-body');
+  if (!body) return;
+  const fields = body.querySelectorAll('.subtle-field, .flag-row, .keymap-row, .bg-layer-tab, .subtle-field-full, .track-mix-controls, .announce-row');
+  active.classList.toggle('cols-1', fields.length <= 6);
+  active.classList.toggle('cols-2', fields.length > 6);
 }
 
 // ===== APLICAR COLORES =====
@@ -771,6 +926,12 @@ const MODE_TABS = [
 ];
 
 export function applyModeFilter(mode) {
+  // En el layout dinámico se muestran TODAS las opciones sin importar el modo
+  // (el usuario quiere ver todo de una). No filtramos por data-modes ahí.
+  if (CFG.drawerLayout === 'dynamic') {
+    document.querySelectorAll('.settings-group[data-modes]').forEach(g => g.classList.remove('hidden-by-mode'));
+    return;
+  }
   document.querySelectorAll('.settings-group[data-modes]').forEach(g => {
     const modes = (g.dataset.modes || '').split(',').map(s => s.trim());
     const show = modes.includes(mode);

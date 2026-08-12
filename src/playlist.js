@@ -132,6 +132,10 @@ export function loadPlaylistAt(idx, autoPlay = false) {
             }
           });
         }
+        // Guardar TODAS las pistas del MIDI (con y sin notas) para que el
+        // panel de pistas pueda mencionarlas aunque alguna no tenga notas
+        // (p.ej. la pista 1 de metadatos).
+        window._midiTracks = parsed.tracks;
         const existingColors = {};
         if (window.trackSettings) {
           Object.keys(window.trackSettings).forEach(idx => {
@@ -302,6 +306,8 @@ export function loadMidiFile(file, addToPlaylist = false) {
           }
         });
       }
+      // Guardar TODAS las pistas del MIDI (con y sin notas) para el panel.
+      window._midiTracks = parsed.tracks;
       currentPlaylistIndex = -1;
       window.currentPlaylistIndex = currentPlaylistIndex;
       if (window.loadSongData) {

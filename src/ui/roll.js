@@ -448,14 +448,20 @@ export function drawTile(ctx, x, y, w, h, color, note) {
     roundRect(ctx, x, y, w, h, 5);
     ctx.fill();
   }
-  // Mostrar nombre de nota en tile si flag activo
+  // Mostrar nombre de nota en tile si flag activo.
+  // Mismo criterio de tamaño que las teclas del piano: las teclas blancas
+  // usan kw*0.42 y las negras kw*0.5 (kw = ancho de la tecla). El tile recibe
+  // en `w` el ancho de la tecla correspondiente, así que usamos el mismo
+  // factor para que el texto mida IGUAL que en el piano. Anclado al PIE.
   if (CFG.flags.showNoteNamesTiles.value && note !== undefined) {
-    ctx.fillStyle = 'rgba(255,255,255,0.85)';
-    // Size similar to the keys (kw * 0.42)
-    ctx.font = `bold ${Math.max(Math.min(w * 0.42, 14), 9)}px sans-serif`;
+    ctx.fillStyle = 'rgba(255,255,255,0.9)';
+    const isBlackKey = [1, 3, 6, 8, 10].includes(((note % 12) + 12) % 12);
+    const factor = isBlackKey ? 0.5 : 0.42;
+    const fs = Math.max(11, Math.round(w * factor));
+    ctx.font = `${fs}px sans-serif`;
     ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(noteLabelName(note, CFG.noteNaming), x + w / 2, y + h / 2);
+    ctx.textBaseline = 'bottom';
+    ctx.fillText(noteLabelName(note, CFG.noteNaming), x + w / 2, y + h - 3);
   }
 }
 

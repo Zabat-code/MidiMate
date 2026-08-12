@@ -58,7 +58,13 @@ export function buildKeyLayout(lo, hi) {
 
 export function applyKeyboardRange() {
   const song = window.song || { notes: [] };
-  if (CFG.visibleKeyCount === 'auto') {
+  if (CFG.visibleKeyCount === 'opt2') {
+    keyLayout = buildKeyLayout(48, 89);      // Compacto: C3 – F6
+  } else if (CFG.visibleKeyCount === 'opt3') {
+    keyLayout = buildKeyLayout(36, 101);     // Amplio: C2 – F7
+  } else if (CFG.visibleKeyCount === 'opt4') {
+    keyLayout = buildKeyLayout(21, 108);     // Todas las teclas (88)
+  } else if (CFG.visibleKeyCount === 'auto' || CFG.visibleKeyCount === 'opt5') {
     if (song.notes && song.notes.length) {
       const minN = Math.min(...song.notes.map(n => n.note));
       const maxN = Math.max(...song.notes.map(n => n.note));
@@ -69,7 +75,7 @@ export function applyKeyboardRange() {
       keyLayout = buildKeyLayout(36, 96);
     }
   } else {
-    const count = +CFG.visibleKeyCount;
+    const count = +CFG.visibleKeyCount || 25;
     const center = (song.notes && song.notes.length)
       ? Math.round((Math.min(...song.notes.map(n => n.note)) + Math.max(...song.notes.map(n => n.note))) / 2)
       : 60;
@@ -115,13 +121,14 @@ export function drawKeys() {
   const skin = CFG.keySkin || 'classic';
   const theme = currentTheme();
   const palette = harmonizePalette || CFG.harmonizePalette || null;
-  const naming = noteNaming || CFG.noteNaming || 'en';
+  const naming = CFG.noteNaming || 'en';
   const showNames = showNoteNames || CFG.flags.showNoteNames.value || false;
   // Usar window.pressedKeys directamente (setKeyState nunca se llama)
   const pressed = window.pressedKeys || new Set();
   const autoPressed = window.autoPressedNotes || new Set();
   const feedback = window.hitFeedback || new Map();
-  const isDown = (note) => pressed.has(note) || autoPressed.has(note);
+  const remapPreview = (window.remapPreviewNote != null) ? window.remapPreviewNote : -1;
+  const isDown = (note) => pressed.has(note) || autoPressed.has(note) || note === remapPreview;
   const fb = (note) => feedback.get(note);
 
   kctx.clearRect(0, 0, w, h);
@@ -133,7 +140,7 @@ export function drawKeys() {
     const x = k.x * w,
       kw = k.w * w;
     const fb = feedback.get(note);
-    const isDown = pressed.has(note) || autoPressed.has(note);
+    const isDown = pressed.has(note) || autoPressed.has(note) || note === remapPreview;
     let color = '#f2ead9';
     if (skin === 'chroma') {
       // Chroma: color de nota, pero al presionar se ilumina (mezcla con blanco)
@@ -207,7 +214,7 @@ export function drawKeys() {
     const x = k.x * w,
       kw = k.w * w;
     const fb = feedback.get(note);
-    const isDown = pressed.has(note) || autoPressed.has(note);
+    const isDown = pressed.has(note) || autoPressed.has(note) || note === remapPreview;
     let color = '#100e1a';
     if (skin === 'chroma') {
       // Chroma: tecla negra se ilumina al presionar

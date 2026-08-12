@@ -105,7 +105,13 @@ export function buildTracksPanel() {
   }
 
   const trackSettings = window.trackSettings || {};
-  const trackIndices = [...new Set(song.notes.map(n => n.track))].sort((a, b) => a - b);
+  // Listar TODAS las pistas del MIDI (las que tienen notas y las que no,
+  // p.ej. pista de metadatos), numeradas por su índice real, para que
+  // ninguna quede sin mencionar.
+  const midiTracks = window._midiTracks || null;
+  const trackIndices = midiTracks
+    ? midiTracks.map((_, i) => i)
+    : [...new Set(song.notes.map(n => n.track))].sort((a, b) => a - b);
 
   trackIndices.forEach(trackIdx => {
     // Asegurar que cada pista tenga un color persistido (si no, todas las notas
@@ -126,13 +132,24 @@ export function buildTracksPanel() {
     const reverb = cfg.reverb !== undefined ? cfg.reverb : 0.0;
     const eq = cfg.eq || { low: 0, mid: 0, high: 0 };
 
+    // Nombre del instrumento detectado en esta pista (si lo hay).
+    let instrName = '';
+    if (midiTracks && midiTracks[trackIdx] && extractProgramsFromTrack) {
+      const progs = extractProgramsFromTrack(midiTracks[trackIdx]);
+      if (progs.length) instrName = programToInstrumentName(progs[progs.length - 1].prog);
+    }
+    const hasNotes = song.notes.some(n => n.track === trackIdx);
+    const trackTitle = `${t('trackLabel')} ${trackIdx + 1}` +
+      (instrName ? ` · ${instrName}` : '') +
+      (hasNotes ? '' : ` (${t('trackNoNotes') || 'sin notas'})`);
+
     const row = document.createElement('div');
     row.className = 'track-row';
     row.style.cssText = 'border:1px solid var(--line); border-radius:8px; padding:8px 10px; margin-bottom:8px; background:rgba(16,14,26,0.3);';
     row.innerHTML = `
       <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
         <input type="color" data-track-color="${trackIdx}" value="${color}" style="width:22px; height:22px; padding:0; border-radius:3px; flex-shrink:0;">
-        <strong style="font-size:12px; flex:1;">${t('trackLabel')} ${trackIdx + 1}</strong>
+        <strong style="font-size:12px; flex:1;">${trackTitle}</strong>
         <label style="font-size:10px; color:var(--ivory-dim); display:flex; align-items:center; gap:3px;">
           <input type="checkbox" data-track-mute="${trackIdx}" ${disabled ? 'checked' : ''}> ${t('trackDisable')}
         </label>

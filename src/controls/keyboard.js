@@ -2,8 +2,8 @@
 // src/controls/keyboard.js - Entrada de teclado PC y Web MIDI
 // ============================================================
 
-import { CFG, saveConfig, DEFAULT_KEYMAP } from '../config.js';
-import { t } from '../i18.js';
+import { CFG, saveConfig, DEFAULT_KEYMAP, DEFAULTS } from '../config.js';
+import { t, noteLabelName } from '../i18.js';
 import { song, accuracy, appMode, freeNotes, pressedKeys, autoPressedNotes, hitFeedback, sustainedNotes, keyboardPedalDown, midiPedalDown, silenceAll, updatePlayButtonLabel, updateAccuracyBadge, showToast, setPlaybackState, setKeyboardPedalDown, setMidiPedalDown } from './playback.js';
 import { startVoice, stopVoice } from '../audio.js';
 import { spawnKeyEffect } from '../ui/roll.js';
@@ -93,6 +93,16 @@ export function releaseSustainedNotes() {
   sustainedNotes.clear();
 }
 
+// Suelta el resaltado de la tecla/botón al terminar una reasignación.
+function endRemap() {
+  window.remapPreviewNote = null;
+  if (window.remapPreviewButton) {
+    const hbtn = document.getElementById(window.remapPreviewButton);
+    if (hbtn) hbtn.classList.remove('flash-assign');
+    window.remapPreviewButton = null;
+  }
+}
+
 // ===== KEYMAP =====
 export function buildKeymapPanel() {
   const list = document.getElementById('keymapList');
@@ -106,7 +116,7 @@ export function buildKeymapPanel() {
     const physKey = reverseMap[note];
     const row = document.createElement('div');
     row.className = 'keymap-row' + (physKey == null ? ' unmapped' : '');
-    row.innerHTML = `<span>${noteName(note)}</span>
+    row.innerHTML = `<span>${noteLabelName(note, CFG.noteNaming)}</span>
       <span class="key-badge" data-note="${note}">${physKey ? physKey.toUpperCase() : '—'}</span>
       <button class="icon-btn" data-remap="${note}" style="font-size:10px;">${t('remap')}</button>`;
     list.appendChild(row);
@@ -114,6 +124,9 @@ export function buildKeymapPanel() {
   list.querySelectorAll('[data-remap]').forEach(btn => {
     btn.addEventListener('click', () => {
       listeningForNote = +btn.dataset.remap;
+      // Mostrar la tecla destino PRESIONADA de inmediato (mientras espera
+      // la nueva tecla), sin tocar el sistema real de teclas presionadas.
+      window.remapPreviewNote = listeningForNote;
       const badge = list.querySelector(`.key-badge[data-note="${listeningForNote}"]`);
       if (badge) {
         badge.textContent = '...';
@@ -127,6 +140,12 @@ export function resetKeymap() {
   CFG.keymap = { ...DEFAULT_KEYMAP };
   saveConfig();
   buildKeymapPanel();
+}
+
+export function resetShortcuts() {
+  CFG.shortcuts = { ...DEFAULTS.shortcuts };
+  saveConfig();
+  buildShortcutsPanel();
 }
 
 // ===== SHORTCUTS =====
@@ -164,6 +183,11 @@ export function buildShortcutsPanel() {
   list.querySelectorAll('[data-remap-shortcut]').forEach(btn => {
     btn.addEventListener('click', () => {
       listeningForShortcut = btn.dataset.remapShortcut;
+      // Hacer parpadear el botón del header relacionado mientras se asigna.
+      const btnId = SHORTCUT_TO_BUTTON[listeningForShortcut];
+      window.remapPreviewButton = btnId || null;
+      const hbtn = btnId && document.getElementById(btnId);
+      if (hbtn) hbtn.classList.add('flash-assign');
       const badge = list.querySelector(`.key-badge[data-shortcut="${listeningForShortcut}"]`);
       if (badge) {
         badge.textContent = '...';
@@ -173,6 +197,26 @@ export function buildShortcutsPanel() {
   });
 }
 
+// Atajo -> id del botón de la barra superior (para parpadear al reasignar).
+const SHORTCUT_TO_BUTTON = {
+  playPause: 'btnPlay',
+  stop: 'btnStop',
+  seekBack: 'btnRewind',
+  seekFwd: 'btnForward',
+  loopToggle: 'btnLoop',
+  playlistPrev: 'btnPlaylistPrev',
+  playlistNext: 'btnPlaylistNext',
+  playlistToggle: 'btnPlaylist',
+  recordToggle: 'btnRecordToggle',
+  mute: null,
+  fullscreen: 'btnFullscreen',
+  sustainToggle: null,
+  openFile: 'midiFile',
+  volUp: null,
+  volDown: null,
+  obsClean: null
+};
+
 function keyDisplay(k) {
   if (k === 'space') return 'Space';
   if (k === 'arrowleft') return '←';
@@ -180,14 +224,10 @@ function keyDisplay(k) {
   return (k || '').toUpperCase();
 }
 
-function noteName(n) {
-  const NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-  return NAMES[n % 12] + (Math.floor(n / 12) - 1);
-}
-
 // ===== MANEJO DE TECLAS PC =====
 export function initKeyboardEvents() {
   document.getElementById('btnResetKeymap')?.addEventListener('click', resetKeymap);
+  document.getElementById('btnResetShortcuts')?.addEventListener('click', resetShortcuts);
 
   window.addEventListener('keydown', e => {
     const isFormField = ['INPUT', 'SELECT', 'TEXTAREA'].includes(document.activeElement?.tagName);
@@ -201,7 +241,12 @@ export function initKeyboardEvents() {
     // cut off with `return` and only accepted navigation keys, making it impossible to
     // reassign to letters/numbers.
     const drawerOpen = document.getElementById('drawer')?.classList.contains('open');
-    if (drawerOpen && !isFormField && !listeningForShortcut && listeningForNote == null) {
+    // En overlay (pantalla completa) el drawer bloquea el teclado: no dejamos
+    // que las teclas lleguen al piano ni a los atajos. En sidebar, en cambio,
+    // el usuario puede tocar el piano (área enfocada) aunque el panel esté
+    // abierto, así que NO bloqueamos.
+    const blockingDrawer = drawerOpen && CFG.drawerLayout !== 'sidebar';
+    if (blockingDrawer && !isFormField && !listeningForShortcut && listeningForNote == null) {
       const navKeys = ['Escape', 'Tab', 'Enter', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '];
       if (!navKeys.includes(e.key)) {
         e.preventDefault();
@@ -209,9 +254,44 @@ export function initKeyboardEvents() {
       }
     }
 
+    // Preview en vivo de la tecla mientras se reasigna: el badge muestra
+    // la tecla física que el usuario va presionando. La tecla del piano se
+    // resalta vía window.remapPreviewNote (puesto al entrar en escucha).
+    if (listeningForNote != null || listeningForShortcut) {
+      const nkPrev = normalizeKey(e);
+      const list = document.getElementById('keymapList');
+      const slist = document.getElementById('shortcutsList');
+      if (listeningForNote != null && list) {
+        const badge = list.querySelector(`.key-badge[data-note="${listeningForNote}"]`);
+        if (badge) badge.textContent = keyDisplay(nkPrev);
+      } else if (listeningForShortcut && slist) {
+        const badge = slist.querySelector(`.key-badge[data-shortcut="${listeningForShortcut}"]`);
+        if (badge) badge.textContent = keyDisplay(nkPrev);
+      }
+    }
+
     if (listeningForShortcut) {
       e.preventDefault();
+      // No permitir duplicados: la tecla no puede estar ya en otro atajo,
+      // ni asignada a una nota del teclado PC (exclusividad mutua).
+      const conflictShortcut = Object.keys(CFG.shortcuts).find(sk => sk !== listeningForShortcut && CFG.shortcuts[sk] === nk);
+      const conflictNote = Object.keys(CFG.keymap).find(pk => CFG.keymap[pk] != null && pk === nk);
+      if (conflictShortcut) {
+        showToast(`La tecla ${keyDisplay(nk)} ya está asignada al atajo "${t(SHORTCUT_LABEL_KEY[conflictShortcut])}". Elige otra.`);
+        endRemap();
+      listeningForShortcut = null;
+        buildShortcutsPanel();
+        return;
+      }
+      if (conflictNote) {
+        showToast(`La tecla ${keyDisplay(nk)} ya está asignada al teclado PC (nota ${noteLabelName(CFG.keymap[nk], CFG.noteNaming)}). Elige otra.`);
+        endRemap();
+      listeningForShortcut = null;
+        buildShortcutsPanel();
+        return;
+      }
       CFG.shortcuts[listeningForShortcut] = nk;
+      endRemap();
       listeningForShortcut = null;
       saveConfig();
       buildShortcutsPanel();
@@ -223,6 +303,9 @@ export function initKeyboardEvents() {
       return;
     }
     if (e.key === 'Escape') {
+      endRemap();
+      listeningForNote = null;
+      listeningForShortcut = null;
       window.setDrawerOpen?.(!document.getElementById('drawer').classList.contains('open'));
       return;
     }
@@ -266,10 +349,25 @@ export function initKeyboardEvents() {
     if (e.ctrlKey || e.metaKey || e.altKey) return;
     const k = e.key.toLowerCase();
     if (listeningForNote != null) {
+      // Detectar si la tecla física ya está en uso (otra nota o algún atajo).
+      const conflictNote = Object.keys(CFG.keymap).find(pk => pk === k && CFG.keymap[pk] !== listeningForNote);
+      const conflictShortcut = Object.keys(CFG.shortcuts).find(sk => CFG.shortcuts[sk] === k);
+      if (conflictNote || conflictShortcut) {
+        const where = conflictNote
+          ? `la nota ${noteLabelName(CFG.keymap[conflictNote], CFG.noteNaming)}`
+          : `el atajo "${t(SHORTCUT_LABEL_KEY[conflictShortcut])}"`;
+        showToast(`La tecla ${k.toUpperCase()} ya está asignada a ${where}. Elige otra.`);
+        endRemap();
+      listeningForNote = null;
+        buildKeymapPanel();
+        return;
+      }
+      // Sin conflicto: limpiar cualquier mapeo previo de esta misma nota y asignar.
       Object.keys(CFG.keymap).forEach(pk => {
         if (CFG.keymap[pk] === listeningForNote) delete CFG.keymap[pk];
       });
       CFG.keymap[k] = listeningForNote;
+      endRemap();
       listeningForNote = null;
       saveConfig();
       buildKeymapPanel();

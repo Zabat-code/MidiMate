@@ -5,8 +5,10 @@
 export const STORAGE_KEY = 'recital-config-v6';
 
 export const DEFAULT_KEYMAP = {
-  'a': 60, 'w': 61, 's': 62, 'e': 63, 'd': 64, 'f': 65, 't': 66,
-  'g': 67, 'y': 68, 'h': 69, 'u': 70, 'j': 71, 'k': 72
+  // Blancos en la fila "a".."'" (línea inferior del teclado)
+  'a': 60, 's': 62, 'd': 64, 'f': 65, 'g': 67, 'h': 69, 'j': 71, 'k': 72, 'l': 74, ';': 76, "'": 77,
+  // Negros en la fila "q".."p" (parte superior)
+  'q': 61, 'w': 63, 'e': 66, 'r': 68, 't': 70, 'y': 73, 'u': 75, 'i': 78, 'o': 80, 'p': 82
 };
 
 export const TRACK_PALETTE = [
@@ -18,7 +20,7 @@ export const DEFAULTS = {
   tempo: 1.0,
   volume: 0.8,
   keySkin: 'default',
-  visibleKeyCount: 'full',
+  visibleKeyCount: 'opt4',
   tileSkin: 'default',
   keyFxStyle: 'ripple',
   colorTheme: 'brass',
@@ -82,11 +84,18 @@ export const DEFAULTS = {
     volume: true,
     fullscreen: true,
     loop: true,
-    playlist: true
+    playlist: true,
+    playlistPrev: true,
+    playlistNext: true,
+    record: true
   },
   background: {
     color: '#000',
-    layers: [{ file: null, type: null, x: 50, y: 50, zoom: 100, opacity: 0.5, order: 'back' }]
+    layers: [
+      { file: null, type: null, x: 50, y: 50, zoom: 100, opacity: 0.5, order: 'back' },
+      { file: null, type: null, x: 50, y: 50, zoom: 100, opacity: 0.5, order: 'middle' },
+      { file: null, type: null, x: 50, y: 50, zoom: 100, opacity: 0.5, order: 'front' }
+    ]
   },
   perspectiveDepth: 50,
   pulseIntensity: 0.5,
@@ -106,21 +115,21 @@ export const DEFAULTS = {
   keymap: { ...DEFAULT_KEYMAP },
   shortcuts: {
     playPause: 'space',
-    mute: 'm',
+    sustainToggle: 'shift',
+    openFile: '1',
+    loopToggle: '2',
+    playlistPrev: '3',
+    playlistNext: '4',
+    playlistToggle: '5',
+    recordToggle: '6',
+    mute: '7',
+    fullscreen: '8',
+    stop: '9',
+    obsClean: '0',
     seekBack: 'arrowleft',
     seekFwd: 'arrowright',
-    fullscreen: 'f',
-    sustainToggle: 'p',
-    openFile: 'o',
-    volUp: '=',
-    volDown: '-',
-    obsClean: 'c',
-    playlistPrev: '[',
-    playlistNext: ']',
-    stop: 's',
-    loopToggle: 'l',
-    playlistToggle: 'j',
-    recordToggle: 'r'
+    volUp: 'arrowup',
+    volDown: 'arrowdown'
   },
   humanize: { enabled: false, jitterTime: 15, jitterVel: 10 },
   swing: { amount: 0 },
@@ -129,7 +138,7 @@ export const DEFAULTS = {
   harmonizePalette: null,
   bassAmount: 0.3,
   realisticAudio: { enabled: false },
-  visibleKeyCount: 'auto',
+  visibleKeyCount: 'opt4',
   keySkin: 'classic',
   tileSkin: 'classic',
   keyFxStyle: 'flash'

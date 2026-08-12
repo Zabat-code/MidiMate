@@ -105,6 +105,10 @@ export function togglePlay() {
 
   console.log('[DEBUG] togglePlay', { mode: appMode, notes: song.notes.length, duration: song.duration, announce: CFG.announce.enabled, countIn: CFG.countIn.enabled });
 
+  // En modo Libre, al dar Play pasamos automáticamente a Ver para que la
+  // canción se reproduzca sola (en Libre las notas no suenan por sí mismas).
+  if (appMode === 'free') applyMode('watch');
+
   if (appMode !== 'free' && song.notes.length && (CFG.announce.enabled || CFG.countIn.enabled)) {
     const announceOn = CFG.announce.enabled;
     const countInOn = CFG.countIn.enabled;

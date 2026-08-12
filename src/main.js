@@ -260,6 +260,15 @@ function init() {
 
   safeStep('loadConfig', () => { loadConfig(); syncPlaylistFromConfig(); applyI18n(); });
 
+  // Si al arrancar ya hay canciones en la playlist (guardadas) pero ninguna
+  // está cargada como activa, cargamos la primera para que el botón Play
+  // funcione de inmediato en lugar de quedar sin canción seleccionada.
+  safeStep('autoLoadFirstPlaylist', () => {
+    if (window.playlist && window.playlist.length > 0 && (window.currentPlaylistIndex == null || window.currentPlaylistIndex < 0)) {
+      if (window.loadPlaylistAt) window.loadPlaylistAt(0, false);
+    }
+  });
+
   safeStep('eventos', () => {
     initDrawerEvents();
     initKeyboardEvents();
