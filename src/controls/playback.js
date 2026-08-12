@@ -183,6 +183,16 @@ export function stopPlayback() {
   document.getElementById('countInOverlay')?.classList.add('hidden');
   silenceAll();
   updatePlayButtonLabel();
+  // Restaura los presets originales de la canción tras el override temporal
+  // "aplicar instrumento a todas las pistas".
+  if (song.__origPresets) {
+    for (const k in song.__origPresets) {
+      if (!window.trackSettings[k]) window.trackSettings[k] = {};
+      window.trackSettings[k].preset = song.__origPresets[k];
+    }
+    song.__origPresets = null;
+    song.__tempPreset = null;
+  }
 }
 
 export function seekBy(deltaSeconds) {

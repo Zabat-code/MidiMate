@@ -219,9 +219,35 @@ export function buildTracksPanel() {
   list.querySelectorAll('[data-track-preset]').forEach(sel => {
     sel.addEventListener('change', e => {
       const idx = +e.target.dataset.trackPreset;
-      if (!window.trackSettings[idx]) window.trackSettings[idx] = {};
-      window.trackSettings[idx].preset = e.target.value;
-      saveConfig();
+      const value = e.target.value;
+      // Aplica el instrumento elegido a TODAS las pistas, pero solo para la
+      // canción que se está reproduciendo (override temporal en memoria).
+      // No sobrescribe la config guardada de otras canciones.
+      if (window.song && window.song.notes && window.song.notes.length) {
+        const total = Math.max(...window.song.notes.map(n => n.track), 0) + 1;
+        if (!window.song.__origPresets) {
+          window.song.__origPresets = {};
+          for (let i = 0; i < total; i++) {
+            if (!window.trackSettings[i]) window.trackSettings[i] = {};
+            window.song.__origPresets[i] = window.trackSettings[i].preset || 'piano';
+          }
+        }
+        window.song.__tempPreset = value;
+        for (let i = 0; i < total; i++) {
+          if (!window.trackSettings[i]) window.trackSettings[i] = {};
+          window.trackSettings[i].preset = value;
+        }
+        // Refleja el cambio en los demás selects de la UI sin recargar.
+        list.querySelectorAll('[data-track-preset]').forEach(other => {
+          if (other !== e.target) other.value = value;
+        });
+        window.showToast(t('soundSourceAllApplied') || 'Instrumento aplicado a todas las pistas (esta canción)');
+      } else {
+        // Sin canción cargada: comportamiento normal (solo esta pista).
+        if (!window.trackSettings[idx]) window.trackSettings[idx] = {};
+        window.trackSettings[idx].preset = value;
+        saveConfig();
+      }
     });
   });
   list.querySelectorAll('[data-track-volume]').forEach(inp => {
