@@ -676,9 +676,14 @@ export function setEqPreset(name) {
   CFG.eq.mid = mid;
   CFG.eq.high = high;
   CFG.eq.preset = name;
-  eqLow.gain.value = low;
-  eqMid.gain.value = mid;
-  eqHigh.gain.value = high;
+  // Los nodos EQ solo existen tras el primer gesto del usuario (grafo lazy).
+  // Si aún no se crearon, guardamos los valores en CFG y se aplican al
+  // inicializar el audio; no accedemos a .gain para evitar el crash.
+  if (eqLow && eqMid && eqHigh) {
+    eqLow.gain.value = low;
+    eqMid.gain.value = mid;
+    eqHigh.gain.value = high;
+  }
   document.getElementById('eqLowInput').value = low;
   document.getElementById('eqLowVal').textContent = low + 'dB';
   document.getElementById('eqMidInput').value = mid;
