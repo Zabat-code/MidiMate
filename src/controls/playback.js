@@ -127,6 +127,7 @@ export function togglePlay() {
     }
     if (totalWait <= 0) {
       song.playing = true;
+      switchToAutoKeyRange();
       song.lastFrameTs = null;
       window.metroNextTime = null;
       updatePlayButtonLabel();
@@ -153,11 +154,25 @@ export function togglePlay() {
   }
 
   song.playing = true;
+  switchToAutoKeyRange();
   song.lastFrameTs = null;
   window.metroNextTime = null;
   updatePlayButtonLabel();
   resetMouseIdle();
   console.log('[DEBUG] reproduce directo');
+}
+
+// Al reproducir un MIDI, pasamos el rango de teclas a "Automático (según el
+// MIDI)" para que se ajuste al rango real de notas de la canción. Solo si el
+// usuario no lo había fijado manualmente en otra cosa distinta de automático.
+function switchToAutoKeyRange() {
+  try {
+    if (CFG.visibleKeyCount !== 'opt5' && CFG.visibleKeyCount !== 'auto') {
+      CFG.visibleKeyCount = 'opt5';
+      saveConfig();
+      window.applyKeyboardRange && window.applyKeyboardRange();
+    }
+  } catch (e) { console.warn('switchToAutoKeyRange:', e); }
 }
 
 export function stopPlayback() {
@@ -256,7 +271,12 @@ export function resetMouseIdle() {
 const FONT_STACKS = { display: 'var(--font-display)', body: 'var(--font-body)', mono: 'monospace' };
 
 function prepareAnnounce(defaultText) {
-  const text = CFG.announce.text.trim() || defaultText;
+  // Si el aviso usa el nombre del archivo (texto vacío en ajustes), quitamos
+  // la extensión .mid/.midi para que no se muestre en pantalla.
+  let text = CFG.announce.text.trim() || defaultText;
+  if (!CFG.announce.text.trim() && /\.(mid|midi)$/i.test(text)) {
+    text = text.replace(/\.(mid|midi)$/i, '');
+  }
   const el = document.getElementById('centerAnnounce');
   if (!el) return el;
   el.textContent = text;

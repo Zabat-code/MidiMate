@@ -391,6 +391,25 @@ export function initDrawerEvents() {
       if (!group) return;
       const willOpen = !group.classList.contains('open');
       group.classList.toggle('open');
+      // En panel lateral: solo una categoría abierta a la vez. Al abrir una,
+      // cerramos las demás (excepto la propia). En fullscreen/dynamic cada una
+      // conserva su estado independiente.
+      if (willOpen && document.body.classList.contains('layout-sidebar')) {
+        document.querySelectorAll('.settings-group.open').forEach(other => {
+          if (other !== group) {
+            other.classList.remove('open');
+            // Si cerramos la de asignación de teclas, restauramos su estado.
+            if (other.dataset.group === 'buttons') {
+              if (buttonsPrevKeyCount != null) {
+                CFG.visibleKeyCount = buttonsPrevKeyCount;
+                buttonsPrevKeyCount = null;
+              }
+              setButtonsForceVisible(false);
+              if (window.applyKeyboardRange) window.applyKeyboardRange();
+            }
+          }
+        });
+      }
       // Al abrir la categoría de asignación de teclas (buttons), mostramos
       // TODAS las teclas del piano y TODOS los botones de la barra superior
       // para que el usuario vea dónde cae cada tecla física y parpadee el

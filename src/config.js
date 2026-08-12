@@ -20,7 +20,7 @@ export const DEFAULTS = {
   tempo: 1.0,
   volume: 0.8,
   keySkin: 'default',
-  visibleKeyCount: 'opt4',
+  visibleKeyCount: 'opt2',
   tileSkin: 'default',
   keyFxStyle: 'ripple',
   colorTheme: 'brass',
@@ -138,7 +138,7 @@ export const DEFAULTS = {
   harmonizePalette: null,
   bassAmount: 0.3,
   realisticAudio: { enabled: false },
-  visibleKeyCount: 'opt4',
+  visibleKeyCount: 'opt2',
   keySkin: 'classic',
   tileSkin: 'classic',
   keyFxStyle: 'flash'

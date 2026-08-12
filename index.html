@@ -120,7 +120,7 @@
           </div>
 
           <h2 data-i18n="sectionMode">Modo de uso</h2>
-          <div class="subtle-field" style="font-size:11px; color:var(--ivory-dim);">Elige el modo arriba (pestañas). Libre = tocas en vivo; Ver = miras la canción; Practicar = estudias con feedback.</div>
+          <div class="subtle-field" data-i18n="modeHint" style="font-size:11px; color:var(--ivory-dim);">Elige el modo arriba (pestañas). Libre = tocas en vivo; Ver = miras la canción; Practicar = estudias con feedback.</div>
           <div class="subtle-field">
             <span data-i18n="loadMidiLabel">Archivo</span>
             <button id="btnLoad" data-i18n="loadBtn" style="align-self:flex-start;">Cargar MIDI</button>
@@ -180,12 +180,12 @@
           <div class="subtle-field" data-i18n="shortcutsHint" style="font-size:11px;">Atajos: Espacio reproducir/pausar · ← / → retroceder/adelantar 5s · F pantalla completa · M silenciar</div>
 
           <div class="subtle-field" style="margin-top:12px; border-top:1px solid var(--line); padding-top:12px;">
-            <button id="btnReporte">📄 Generar reporte de funciones (TXT)</button>
-            <span style="font-size:10px; color:var(--ivory-dim);">Descarga un archivo con el listado de todas las funciones de la app, además de los errores registrados en esta sesión.</span>
+            <button id="btnReporte" data-i18n="reportBtn">📄 Generar reporte de funciones (TXT)</button>
+            <span data-i18n="reportDesc" style="font-size:10px; color:var(--ivory-dim);">Descarga un archivo con el listado de todas las funciones de la app, además de los errores registrados en esta sesión.</span>
           </div>
           <div class="subtle-field" style="margin-top:8px;">
-            <button id="btnFactoryReset" style="background:#5e2a2a; color:#f2d9d9;">🗑️ Restablecer todo</button>
-            <span style="font-size:10px; color:var(--ivory-dim);">Borra toda la configuración guardada (temas, atajos, playlist, ajustes) y recarga la página con los valores de fábrica.</span>
+            <button id="btnFactoryReset" data-i18n="factoryResetBtn" style="background:#5e2a2a; color:#f2d9d9;">🗑️ Restablecer todo</button>
+            <span data-i18n="factoryResetDesc" style="font-size:10px; color:var(--ivory-dim);">Borra toda la configuración guardada (temas, atajos, playlist, ajustes) y recarga la página con los valores de fábrica.</span>
           </div>
         </div>
       </div>
@@ -244,7 +244,7 @@
               <option value="glow" data-i18n="skinGlow">Resplandor</option>
               <option value="outline" data-i18n="skinOutline">Contorno</option>
               <option value="chroma" data-i18n="skinChroma">Color por nota (chroma)</option>
-              <option value="tracks">Color por pista</option>
+              <option value="tracks" data-i18n="skinTracks">Color por pista</option>
             </select>
           </div>
           <div class="subtle-field">
@@ -256,9 +256,9 @@
               <option value="fire" data-i18n="fxFire">Fuego</option>
               <option value="bubbles" data-i18n="fxBubbles">Burbujas</option>
               <option value="lightning" data-i18n="fxLightning">Relámpago</option>
-              <option value="explosion">Explosión</option>
-              <option value="wave">Onda</option>
-              <option value="rain">Lluvia de estrellas</option>
+              <option value="explosion" data-i18n="fxExplosion">Explosión</option>
+              <option value="wave" data-i18n="fxWave">Onda</option>
+              <option value="rain" data-i18n="fxRain">Lluvia de estrellas</option>
             </select>
           </div>
 
@@ -385,11 +385,11 @@
         <button class="group-header" data-group-toggle="export"><span class="group-icon">🎬</span><span data-i18n="groupExport">Exportar video</span><span class="group-icon-end">🎬</span><span class="group-chevron">▸</span></button>
         <div class="group-body" id="groupBody-export">
           <h2 data-i18n="sectionExport">Grabar y exportar video</h2>
-          <div style="font-size:11px; color:var(--ivory-dim); margin-bottom:8px;">
+          <div class="subtle-field" data-i18n="exportHint" style="font-size:11px; color:var(--ivory-dim); margin-bottom:8px;">
             Elige el formato, presiona ⏺ en la barra superior (o la tecla <b>R</b>), y luego Play para reproducir la canción. Al presionar ⏺ de nuevo (o Stop), el video se descarga solo — compatible con YouTube, Instagram, TikTok y X.
           </div>
           <div class="subtle-field">
-            <label for="recordPresetSelect" style="font-size:12px;">Formato / red social</label>
+            <label for="recordPresetSelect" data-i18n="recordFormatLabel" style="font-size:12px;">Formato / red social</label>
             <select id="recordPresetSelect"></select>
           </div>
         </div>
