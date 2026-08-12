@@ -97,7 +97,32 @@ export function extractProgramsFromTrack(events) {
 export function buildTracksPanel() {
   const list = document.getElementById('tracksList');
   if (!list) return;
+  const keepAll = !!window.__keepAllPreset;
+  const keepToggleHTML = `
+    <label style="display:flex; align-items:center; gap:6px; font-size:11px; color:var(--ivory-dim); margin-bottom:8px; cursor:pointer;">
+      <input type="checkbox" id="keepAllPresetToggle" ${keepAll ? 'checked' : ''}>
+      ${t('keepAllPreset') || 'Mantener instrumento en todas las pistas'}
+    </label>
+  `;
   list.innerHTML = '';
+  list.insertAdjacentHTML('afterbegin', keepToggleHTML);
+  const keepToggle = document.getElementById('keepAllPresetToggle');
+  if (keepToggle) {
+    keepToggle.addEventListener('change', e => {
+      window.__keepAllPreset = e.target.checked;
+      if (!e.target.checked && window.song && window.song.__origPresets) {
+        // Al desactivar, restauramos los originales de inmediato.
+        for (const k in window.song.__origPresets) {
+          if (!window.trackSettings[k]) window.trackSettings[k] = {};
+          window.trackSettings[k].preset = window.song.__origPresets[k];
+        }
+        window.song.__origPresets = null;
+        window.song.__tempPreset = null;
+        buildTracksPanel();
+      }
+      window.showToast(t('keepAllPreset') + ': ' + (e.target.checked ? (t('on') || 'ON') : (t('off') || 'OFF')));
+    });
+  }
 
   if (!song.notes || !song.notes.length) {
     list.innerHTML = `<div style="font-size:11px; color:var(--ivory-dim);">${t('noTracksYet')}</div>`;
@@ -225,7 +250,9 @@ export function buildTracksPanel() {
       // No sobrescribe la config guardada de otras canciones.
       if (window.song && window.song.notes && window.song.notes.length) {
         const total = Math.max(...window.song.notes.map(n => n.track), 0) + 1;
-        if (!window.song.__origPresets) {
+        // Si el toggle "mantener" está activo, no guardamos snapshot de
+        // originales: el override persiste aunque se detenga la canción.
+        if (!window.__keepAllPreset && !window.song.__origPresets) {
           window.song.__origPresets = {};
           for (let i = 0; i < total; i++) {
             if (!window.trackSettings[i]) window.trackSettings[i] = {};

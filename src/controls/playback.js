@@ -184,8 +184,9 @@ export function stopPlayback() {
   silenceAll();
   updatePlayButtonLabel();
   // Restaura los presets originales de la canción tras el override temporal
-  // "aplicar instrumento a todas las pistas".
-  if (song.__origPresets) {
+  // "aplicar instrumento a todas las pistas", a menos que el toggle
+  // "mantener" esté activo (en ese caso el override persiste).
+  if (song.__origPresets && !window.__keepAllPreset) {
     for (const k in song.__origPresets) {
       if (!window.trackSettings[k]) window.trackSettings[k] = {};
       window.trackSettings[k].preset = song.__origPresets[k];
