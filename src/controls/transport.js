@@ -66,6 +66,12 @@ export function initTransportEvents() {
   // Play/Pause
   document.getElementById('btnPlay')?.addEventListener('click', () => {
     if (actx.state === 'suspended') actx.resume();
+    // Si hay canciones en la lista de reproducción y ninguna está cargada
+    // como activa, reproducir la lista (no la canción suelta).
+    if (window.playlist && window.playlist.length > 0 &&
+        (window.currentPlaylistIndex == null || window.currentPlaylistIndex < 0)) {
+      if (window.loadPlaylistAt) { window.loadPlaylistAt(0, true); return; }
+    }
     togglePlay();
   });
 
