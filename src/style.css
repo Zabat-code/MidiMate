@@ -1,17 +1,44 @@
 :root{
+  /* TEMA CLÁSICO (default) — paleta original de MidiMate */
   --bg-void:#14121f;
   --bg-panel:#1c1930;
   --bg-panel-2:#211d38;
+  --bg-elev:#221d38;
   --brass:#c9a24b;
   --brass-soft:#e0bd6d;
   --ivory:#f2ead9;
   --ivory-dim:#a89f8f;
   --ebony:#100e1a;
+  --accent:#c9a24b;
+  --accent-soft:#e0bd6d;
   --correct:#6fbf73;
   --wrong:#d9534f;
   --line:rgba(242,234,217,0.12);
+  --shadow-1:0 2px 8px rgba(0,0,0,0.35);
+  --shadow-2:0 12px 40px rgba(0,0,0,0.45);
   --font-display:Georgia,'Times New Roman',serif;
   --font-body:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;
+}
+body[data-theme="concerthall"]{
+  /* TEMA CONCERT HALL — rediseño (design.md) */
+  --bg-void:#0e0c16;
+  --bg-panel:#171427;
+  --bg-panel-2:#221d38;
+  --bg-elev:#2c2547;
+  --brass:#d4a843;
+  --brass-soft:#f0cd73;
+  --ivory:#f4eede;
+  --ivory-dim:#9b9384;
+  --ebony:#0a0812;
+  --accent:#54d6c4;
+  --accent-soft:#7fe9da;
+  --correct:#5fd66a;
+  --wrong:#e8605c;
+  --line:rgba(244,238,222,0.14);
+  --shadow-1:0 2px 8px rgba(0,0,0,0.35);
+  --shadow-2:0 12px 40px rgba(0,0,0,0.45);
+  --font-display:'Cormorant Garamond',Georgia,'Times New Roman',serif;
+  --font-body:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;
 }
 *{box-sizing:border-box;}
 html,body{height:100%;}
@@ -28,8 +55,8 @@ body{
 
 header{
   display:flex; align-items:center; justify-content:space-between;
-  padding:14px 64px 14px 22px; border-bottom:1px solid var(--line);
-  background:linear-gradient(180deg, rgba(20,18,31,0.9), rgba(20,18,31,0.75));
+  padding:14px 22px; border-bottom:1px solid var(--line);
+  background:linear-gradient(180deg, rgba(14,12,22,0.92), rgba(14,12,22,0.78));
   flex-shrink:0; backdrop-filter:blur(2px);
   gap:14px;
 }
@@ -40,9 +67,13 @@ h1 .mark{color:var(--brass);}
 button, select{
   background:var(--bg-panel-2); color:var(--ivory); border:1px solid var(--line);
   border-radius:8px; padding:8px 14px; font-family:var(--font-body); font-size:13px;
-  font-weight:500; cursor:pointer; transition:border-color .15s;
+  font-weight:500; cursor:pointer; transition:border-color .15s, box-shadow .15s, transform .05s;
 }
-button:hover, select:hover{border-color:var(--brass);}
+button:hover, select:hover{border-color:var(--brass); box-shadow:var(--shadow-1);}
+button:focus-visible, select:focus-visible, input:focus-visible, [tabindex]:focus-visible{
+  outline:2px solid var(--accent); outline-offset:2px;
+}
+button:active, select:active{transform:translateY(1px); filter:brightness(1.08);}
 button.primary{background:var(--brass); color:#241a08; border-color:var(--brass); font-weight:600;}
 button.primary:hover{background:var(--brass-soft);}
 button:disabled{opacity:.4; cursor:not-allowed;}
@@ -90,17 +121,17 @@ main{flex:1; display:flex; flex-direction:column; min-height:0; position:relativ
 #floatSettings{
   position:fixed; top:12px; right:18px; z-index:50;
   width:38px; height:38px; border-radius:8px;
-  background:var(--bg-panel-2); border:1px solid var(--line);
+  background:var(--bg-elev); border:1px solid var(--line);
   color:var(--ivory-dim); display:flex; align-items:center; justify-content:center;
-  font-size:19px; cursor:pointer; opacity:.7; transition:opacity .15s, border-color .15s, color .15s;
+  font-size:19px; cursor:pointer; opacity:.7; transition:opacity .15s, border-color .15s, color .15s, box-shadow .15s;
 }
-#floatSettings:hover{opacity:1; border-color:var(--brass); color:var(--brass-soft);}
+#floatSettings:hover{opacity:1; border-color:var(--brass); color:var(--brass-soft); box-shadow:var(--shadow-1);}
 
 #drawer{
   position:fixed; inset:0; width:100%;
-  background:rgba(20,18,31,0.99); border-left:none;
+  background:var(--bg-elev); border-left:none;
   transform:translateX(100%); transition:transform .25s ease, width .2s ease;
-  z-index:40; padding:28px; overflow-y:auto;
+  z-index:40; padding:22px; overflow-y:auto; box-shadow:var(--shadow-2);
 }
 #drawer.open{transform:translateX(0);}
 body.layout-sidebar #drawer{ left:auto; width:380px; border-left:1px solid var(--line); }
@@ -149,8 +180,8 @@ body:not(.layout-sidebar) #drawerInner{
 }
 .group-header{
   width:100%; display:flex; align-items:center; justify-content:space-between; gap:8px;
-  background:rgba(201,162,75,0.08); border:none; border-radius:0;
-  padding:12px 16px; font-family:var(--font-display); font-size:22.5px; color:var(--brass-soft);
+  background:rgba(212,168,67,0.08); border:none; border-radius:0;
+  padding:11px 16px; font-family:var(--font-display); font-size:17px; font-weight:600; color:var(--brass-soft);
   cursor:pointer; text-align:left;
 }
 .group-header .group-icon{font-size:0.7em; flex-shrink:0;}
@@ -523,11 +554,11 @@ body.layout-sidebar:has(#drawer.open) header{ margin-right:380px; padding-right:
   cursor: pointer;
 }
 .playlist-item:hover {
-  background: rgba(201,162,75,0.10);
+  background: rgba(212,168,67,0.10);
 }
 .playlist-item.active {
-  background: rgba(201,162,75,0.18);
-  border-color: rgba(201,162,75,0.45);
+  background: rgba(212,168,67,0.18);
+  border-color: rgba(212,168,67,0.45);
 }
 .playlist-item .name {
   flex: 1;
@@ -581,10 +612,10 @@ body.layout-sidebar:has(#drawer.open) header{ margin-right:380px; padding-right:
   font-weight: 600;
   cursor: pointer;
   font-size: 12px;
+  transition: background .15s, box-shadow .15s, transform .05s;
 }
-#btnReporte:hover {
-  background: var(--brass-soft);
-}
+#btnReporte:hover { background: var(--brass-soft); box-shadow: var(--shadow-1); }
+#btnReporte:active { transform: translateY(1px); }
 
 /* ===== RESPONSIVE / TÁCTIL ===== */
 @media (max-width: 768px) {

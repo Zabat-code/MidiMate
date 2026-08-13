@@ -473,6 +473,11 @@ export function initDrawerEvents() {
     CFG.countIn.audio = e.target.checked;
     saveConfig();
   });
+  document.getElementById('uiThemeSelect')?.addEventListener('change', e => {
+    CFG.uiTheme = e.target.value;
+    applyDrawerLayout(); // aplica data-theme en vivo
+    saveConfig();
+  });
   document.getElementById('colorThemeSelect')?.addEventListener('change', e => {
     CFG.colorTheme = e.target.value;
     applyColorTheme();
@@ -756,6 +761,12 @@ export function syncAdvancedSettingsUI() {
 export function applyDrawerLayout() {
   document.body.classList.toggle('layout-sidebar', CFG.drawerLayout === 'sidebar');
   document.body.classList.toggle('layout-dynamic', CFG.drawerLayout === 'dynamic');
+  // Tema de interfaz (classic por defecto | concerthall rediseño)
+  if (CFG.uiTheme && CFG.uiTheme !== 'classic') {
+    document.body.setAttribute('data-theme', CFG.uiTheme);
+  } else {
+    document.body.removeAttribute('data-theme');
+  }
   // Forzar height limpio al cambiar de layout (evita bugs de scroll/overflow)
   const drawer = document.getElementById('drawer');
   if (drawer) {
@@ -772,6 +783,8 @@ export function applyDrawerLayout() {
   if (layoutSel) layoutSel.value = CFG.drawerLayout;
   const langSel = document.getElementById('langSelect');
   if (langSel) langSel.value = CFG.language || 'es';
+  const uiThemeSel = document.getElementById('uiThemeSelect');
+  if (uiThemeSel) uiThemeSel.value = CFG.uiTheme || 'classic';
 }
 
 function applyGroupDefaults() {

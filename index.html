@@ -4,6 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Piano</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/src/style.css" />
 </head>
 <body>
@@ -214,6 +217,14 @@
       <div class="settings-group" data-group="appearance">
         <button class="group-header" data-group-toggle="appearance"><span class="group-icon">🎨</span><span data-i18n="groupAppearance">groupAppearance</span><span class="group-icon-end">🎨</span><span class="group-chevron">▸</span></button>
         <div class="group-body" id="groupBody-appearance">
+          <h2 data-i18n="sectionUiTheme">Tema de interfaz</h2>
+          <div class="subtle-field">
+            <select id="uiThemeSelect">
+              <option value="classic" data-i18n="uiThemeClassic">Clásico (oscuro original)</option>
+              <option value="concerthall" data-i18n="uiThemeConcertHall">Concert Hall (rediseño)</option>
+            </select>
+          </div>
+
           <h2 data-i18n="sectionColorTheme">Tema de color</h2>
           <div class="subtle-field">
             <select id="colorThemeSelect">

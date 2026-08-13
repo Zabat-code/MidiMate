@@ -30,6 +30,7 @@ export const DEFAULTS = {
   staffColors: { noteColor: '#fff', bgColor: '#000' },
   staffHeight: 280,
   drawerLayout: 'sidebar',
+  uiTheme: 'classic', // 'classic' (default oscuro original) | 'concerthall' (rediseño design.md)
   language: 'en',
   difficultyLevel: 'intermediate',
   difficultyPresets: {
