@@ -44,6 +44,13 @@ describe('arranque de la app', () => {
     const pasos = errores.filter(e => /Falló el paso de inicio/.test(e));
     expect(pasos).toEqual([]);
   });
+
+  it('el arranque rehidrata trackSettings desde la configuración guardada', async () => {
+    // CFG.trackSettings se escribía al guardar pero nunca se volvía a leer:
+    // la mezcla por pista se perdía al recargar. Guarda de la línea que lo fija.
+    const fuente = (await import('../main.js?raw')).default.replace(/\r/g, '');
+    expect(fuente).toMatch(/Object\.assign\(trackSettings,\s*CFG\.trackSettings\s*\|\|\s*\{\}\)/);
+  });
 });
 
 describe('superficie pública de window', () => {

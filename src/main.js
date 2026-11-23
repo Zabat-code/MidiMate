@@ -444,6 +444,9 @@ function init() {
 
   safeStep('loadConfig', () => {
     loadConfig();
+    // Antes se escribía CFG.trackSettings pero nunca se volvía a leer: la
+    // mezcla por pista se perdía al recargar. Hidratamos el objeto vivo.
+    Object.assign(trackSettings, CFG.trackSettings || {});
     syncPlaylistFromConfig();
     applyI18n();
   });

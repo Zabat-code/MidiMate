@@ -38,6 +38,17 @@ describe('loadConfig', () => {
     expect(cfg.flags.bpmPulse).toBeDefined();
   });
 
+  it('recupera la mezcla por pista guardada (no solo escritura)', () => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      trackSettings: { 0: { volume: 1.5, pan: -0.4, detune: 7, reverb: 0.5,
+                            eq: { low: 2, mid: 0, high: -1 } } }
+    }));
+    const cfg = loadConfig();
+    expect(cfg.trackSettings['0'].volume).toBe(1.5);
+    expect(cfg.trackSettings['0'].reverb).toBe(0.5);
+    expect(cfg.trackSettings['0'].eq.low).toBe(2);
+  });
+
   it('returns to DEFAULTS if the saved JSON is corrupt', () => {
     localStorage.setItem(STORAGE_KEY, '{esto no es json valido');
     const cfg = loadConfig();

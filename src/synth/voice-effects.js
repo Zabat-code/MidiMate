@@ -73,6 +73,9 @@ export function buildTrackChain(mixParams, input) {
   if (useEq) { gainNode.connect(filterLow); head = filterHigh; }
   if (usePan) { head.connect(pannerNode); head = pannerNode; }
   head.connect(masterGain);
+  // El send debe recibir la señal: sin esta conexión el convolver está montado
+  // en el grafo pero no oye nada y la reverb es inaudible.
+  if (useReverb) head.connect(reverbSend);
 
   input.connect(gainNode);
 

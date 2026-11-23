@@ -93,6 +93,22 @@ describe('audio runtime (regression of the Proxy bug in connect)', () => {
     }
   });
 
+  it('el send de reverb recibe señal (el convolver no queda mudo)', async () => {
+    const { loadConfig } = await import('../config.js');
+    loadConfig();
+    const audio = await import('../audio.js');
+    audio.ensureAudio();
+    audio.ensureReverb();
+    connectLog.length = 0;
+
+    const voice = audio.makeVoice('piano', 60, 100, {
+      volume: 1, pan: 0, detune: 0, reverb: 0.6, eq: { low: 0, mid: 0, high: 0 }
+    });
+    expect(voice.reverbSend).toBeTruthy();
+    expect(voice.reverbSend.gain.value).toBeCloseTo(0.48, 5);
+    expect(connectLog).toContain(audio.reverbBus);
+  });
+
   it('actx sigue siendo un Proxy (lazy) pero delega a un contexto real', async () => {
     const audio = await import('../audio.js');
     const ctx = audio.ensureAudio();
