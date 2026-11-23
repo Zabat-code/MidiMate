@@ -75,8 +75,7 @@ import {
   initOnboarding
 } from './onboarding.js';
 
-// Mini-reproductor e importación/exportación (paridad con la web)
-import { initMiniPlayer } from './mini-player.js';
+// Importación/exportación de configuración y lista (paridad con la web)
 import { initPlaylistIO } from './playlist-io.js';
 
 // Grabación
@@ -502,7 +501,6 @@ function init() {
     initReportButton();
     initPlaylistButton();
     initRecordingUI();
-    initMiniPlayer();
     initPlaylistIO();
     registrarTodas();
   });

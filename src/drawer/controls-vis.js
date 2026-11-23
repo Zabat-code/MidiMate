@@ -20,7 +20,6 @@ export const CTRL_META = {
   playlist: 'ctrlPlaylist',
   playlistPrev: 'shortcutPlaylistPrev',
   playlistNext: 'shortcutPlaylistNext',
-  mini: 'shortcutMini',
   record: 'shortcutRecordToggle'
 };
 

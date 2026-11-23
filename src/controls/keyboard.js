@@ -339,7 +339,6 @@ export function initKeyboardEvents() {
         saveConfig();
         return;
       }
-      if (nk === shortcuts.mini) { document.getElementById('btnMini')?.click(); return; }
       if (nk === shortcuts.playlistPrev) {
         document.getElementById('btnPlaylistPrev')?.click();
         return;

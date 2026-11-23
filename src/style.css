@@ -657,21 +657,3 @@ body.layout-sidebar:has(#drawer.open) header{ margin-right:380px; padding-right:
    teclado virtual para que sea más fácil tocar teclas con el dedo. */
 body.touch-device #keysWrap{ min-height:140px; }
 body.touch-device button, body.touch-device select{ min-height:38px; }
-
-/* ===== Mini-reproductor (paridad con MidiMate-web) ===== */
-#miniPlayer{position:fixed; right:20px; bottom:20px; z-index:90; width:290px; display:none;
-  background:var(--bg-panel-2,#292F2B); border:1px solid var(--line,#554b3a); border-radius:12px;
-  box-shadow:0 18px 50px rgba(0,0,0,.5); padding:10px 12px; color:var(--ivory,#f3ecdc);}
-#miniPlayer.open{display:block;}
-body.mini-mode header, body.mini-mode #progressWrap, body.mini-mode main,
-body.mini-mode #floatSettings{display:none !important;}
-body.mini-mode #miniPlayer{right:50%; bottom:40px; transform:translateX(50%); width:min(420px,calc(100% - 40px));}
-.mini-head{display:flex; align-items:center; gap:8px; cursor:move; font-size:13px; font-weight:700;
-  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
-.mini-dot{width:9px; height:9px; border-radius:50%; background:var(--brass,#d4a843); flex-shrink:0;}
-.mini-x{margin-left:auto; background:transparent; border:none; color:inherit; font-size:17px; cursor:pointer;}
-#miniTime{font-size:11px; opacity:.75; margin:8px 0 5px; font-variant-numeric:tabular-nums;}
-#miniBar{height:6px; border-radius:3px; background:rgba(255,255,255,.15); overflow:hidden;}
-#miniBarFill{height:100%; width:0; background:var(--brass,#d4a843);}
-#miniControls{display:flex; gap:6px; margin-top:10px;}
-#miniControls button{flex:1;}

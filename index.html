@@ -34,7 +34,6 @@
       <label class="chip" data-ctrl="volume"><span id="volIcon">🔊</span> <input type="range" id="volume" min="0" max="300" value="80"> <input type="number" id="volumeNum" min="0" max="300" value="80" style="width:52px;">%</label>
       <button id="btnConnectAPI" class="icon-square" data-ctrl="connectApi" title="Conectar a Midiforja API">🔌</button>
   <span id="apiConnectionStatus" style="font-size:10px;color:#888;margin-left:4px;">○</span>
-  <button id="btnMini" class="icon-square" data-ctrl="mini" title="Mini-reproductor (N)">🗕</button>
   <button id="btnFullscreen" class="icon-square" data-ctrl="fullscreen" title="Fullscreen">⛶</button>
       <button id="btnRecordToggle" class="icon-square" data-ctrl="record" title="Grabar video (R)">⏺</button>
       <span id="recordingIndicator" style="display:none; align-items:center; gap:6px; color:#ff5555; font-size:12px; font-weight:700;">
@@ -67,21 +66,6 @@
   </main>
 
   <div id="toast"></div>
-  <div id="miniPlayer">
-    <div class="mini-head" id="miniHead">
-      <span class="mini-dot"></span>
-      <span id="miniTitle">—</span>
-      <button class="mini-x" id="miniRestore" title="Restaurar">⤢</button>
-    </div>
-    <div id="miniTime">0:00 / 0:00</div>
-    <div id="miniBar"><div id="miniBarFill"></div></div>
-    <div id="miniControls">
-      <button class="icon-square" id="miniRewind" title="-5s">⏪</button>
-      <button class="icon-square primary" id="miniPlay" title="Play/Pause">▶</button>
-      <button class="icon-square" id="miniForward" title="+5s">⏩</button>
-      <button class="icon-square" id="miniStop" title="Stop">⏹</button>
-    </div>
-  </div>
   <div id="floatSettings" title="Settings">⚙</div>
 
   <div id="modePromptModal">
