@@ -4,7 +4,7 @@
 
 import { sctx } from './canvas.js';
 import { CFG } from '../config.js';
-import { song, appMode, pressedKeys } from '../controls/playback.js';
+import { song, appMode, pressedKeys, trackSettings } from '../song-state.js';
 import { getKeyLayout } from './keys.js';
 
 // ===== NOMBRE DE ACORDE =====
@@ -104,7 +104,9 @@ export function drawStaff() {
     if (CFG.freeModeDisplay === 'text') {
       if (freeLabelEl) {
         freeLabelEl.style.display = 'flex';
-        const chordName = window.chordName || (() => '');
+        // Antes: const chordName = window.chordName || (() => ''), que
+        // sombreaba la función chordName de este mismo fichero y dependía de
+        // que main.js la hubiera publicado.
         freeLabelEl.textContent = chordName();
       }
       return;
@@ -171,7 +173,6 @@ export function drawStaff() {
   sctx.lineTo(cursorX, layout.bass.top + layout.bass.spacing * 4.5);
   sctx.stroke();
 
-  const trackSettings = window.trackSettings || {};
   song.notes.forEach(n => {
     const trackCfg = trackSettings[n.track];
     if (trackCfg && (trackCfg.visible === false || trackCfg.disabled)) return;

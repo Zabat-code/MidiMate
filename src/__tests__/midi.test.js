@@ -56,12 +56,11 @@ describe('midiToNotes', () => {
     expect(notes[0].end).toBeCloseTo(0.5, 2);
   });
 
-  it('doesn\'t crash if ticksPerBeat arrives at 0 (uses a fallback value)', () => {
+  it('rejects a zero division explicitly', () => {
     const header = [0x4d, 0x54, 0x68, 0x64, 0, 0, 0, 6, 0, 0, 0, 1, 0, 0];
     const track = [0x00, 0xff, 0x2f, 0x00];
     const trackHeader = [0x4d, 0x54, 0x72, 0x6b, 0, 0, 0, track.length];
     const buf = new Uint8Array([...header, ...trackHeader, ...track]).buffer;
-    const parsed = parseMidi(buf);
-    expect(parsed.ticksPerBeat).toBeGreaterThan(0);
+    expect(() => parseMidi(buf)).toThrow(/division/i);
   });
 });

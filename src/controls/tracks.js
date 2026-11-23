@@ -4,7 +4,7 @@
 
 import { CFG, saveConfig, TRACK_PALETTE } from '../config.js';
 import { t } from '../i18.js';
-import { song } from './playback.js';
+import { song, trackSettings, showToast, setKeepAllPreset, getKeepAllPreset, getMidiTracks } from './playback.js';
 
 // ===== MAPA DE PROGRAMAS MIDI A PRESETS =====
 const PROGRAM_TO_PRESET = {
@@ -97,7 +97,7 @@ export function extractProgramsFromTrack(events) {
 export function buildTracksPanel() {
   const list = document.getElementById('tracksList');
   if (!list) return;
-  const keepAll = !!window.__keepAllPreset;
+  const keepAll = getKeepAllPreset();
   const keepToggleHTML = `
     <label style="display:flex; align-items:center; gap:6px; font-size:11px; color:var(--ivory-dim); margin-bottom:8px; cursor:pointer;">
       <input type="checkbox" id="keepAllPresetToggle" ${keepAll ? 'checked' : ''}>
@@ -109,18 +109,18 @@ export function buildTracksPanel() {
   const keepToggle = document.getElementById('keepAllPresetToggle');
   if (keepToggle) {
     keepToggle.addEventListener('change', e => {
-      window.__keepAllPreset = e.target.checked;
-      if (!e.target.checked && window.song && window.song.__origPresets) {
+      setKeepAllPreset(e.target.checked);
+      if (!e.target.checked && song && song.__origPresets) {
         // Al desactivar, restauramos los originales de inmediato.
-        for (const k in window.song.__origPresets) {
-          if (!window.trackSettings[k]) window.trackSettings[k] = {};
-          window.trackSettings[k].preset = window.song.__origPresets[k];
+        for (const k in song.__origPresets) {
+          if (!trackSettings[k]) trackSettings[k] = {};
+          trackSettings[k].preset = song.__origPresets[k];
         }
-        window.song.__origPresets = null;
-        window.song.__tempPreset = null;
+        song.__origPresets = null;
+        song.__tempPreset = null;
         buildTracksPanel();
       }
-      window.showToast(t('keepAllPreset') + ': ' + (e.target.checked ? (t('on') || 'ON') : (t('off') || 'OFF')));
+      showToast(t('keepAllPreset') + ': ' + (e.target.checked ? (t('on') || 'ON') : (t('off') || 'OFF')));
     });
   }
 
@@ -129,11 +129,10 @@ export function buildTracksPanel() {
     return;
   }
 
-  const trackSettings = window.trackSettings || {};
   // Listar TODAS las pistas del MIDI (las que tienen notas y las que no,
   // p.ej. pista de metadatos), numeradas por su índice real, para que
   // ninguna quede sin mencionar.
-  const midiTracks = window._midiTracks || null;
+  const midiTracks = getMidiTracks();
   const trackIndices = midiTracks
     ? midiTracks.map((_, i) => i)
     : [...new Set(song.notes.map(n => n.track))].sort((a, b) => a - b);
@@ -141,9 +140,9 @@ export function buildTracksPanel() {
   trackIndices.forEach(trackIdx => {
     // Asegurar que cada pista tenga un color persistido (si no, todas las notas
     // salían blancas al usar el skin "Color por pista" hasta tocar algo manualmente).
-    if (!window.trackSettings[trackIdx]) window.trackSettings[trackIdx] = {};
-    if (!window.trackSettings[trackIdx].color) {
-      window.trackSettings[trackIdx].color = TRACK_PALETTE[trackIdx % TRACK_PALETTE.length];
+    if (!trackSettings[trackIdx]) trackSettings[trackIdx] = {};
+    if (!trackSettings[trackIdx].color) {
+      trackSettings[trackIdx].color = TRACK_PALETTE[trackIdx % TRACK_PALETTE.length];
     }
     const cfg = trackSettings[trackIdx] || {};
     const color = cfg.color;
@@ -212,32 +211,32 @@ export function buildTracksPanel() {
   list.querySelectorAll('[data-track-color]').forEach(inp => {
     inp.addEventListener('input', e => {
       const idx = +e.target.dataset.trackColor;
-      if (!window.trackSettings[idx]) window.trackSettings[idx] = {};
-      window.trackSettings[idx].color = e.target.value;
+      if (!trackSettings[idx]) trackSettings[idx] = {};
+      trackSettings[idx].color = e.target.value;
       saveConfig();
     });
   });
   list.querySelectorAll('[data-track-mute]').forEach(cb => {
     cb.addEventListener('change', e => {
       const idx = +e.target.dataset.trackMute;
-      if (!window.trackSettings[idx]) window.trackSettings[idx] = {};
-      window.trackSettings[idx].disabled = e.target.checked;
+      if (!trackSettings[idx]) trackSettings[idx] = {};
+      trackSettings[idx].disabled = e.target.checked;
       saveConfig();
     });
   });
   list.querySelectorAll('[data-track-auto]').forEach(cb => {
     cb.addEventListener('change', e => {
       const idx = +e.target.dataset.trackAuto;
-      if (!window.trackSettings[idx]) window.trackSettings[idx] = {};
-      window.trackSettings[idx].auto = e.target.checked;
+      if (!trackSettings[idx]) trackSettings[idx] = {};
+      trackSettings[idx].auto = e.target.checked;
       saveConfig();
     });
   });
   list.querySelectorAll('[data-track-visible]').forEach(cb => {
     cb.addEventListener('change', e => {
       const idx = +e.target.dataset.trackVisible;
-      if (!window.trackSettings[idx]) window.trackSettings[idx] = {};
-      window.trackSettings[idx].visible = e.target.checked;
+      if (!trackSettings[idx]) trackSettings[idx] = {};
+      trackSettings[idx].visible = e.target.checked;
       saveConfig();
     });
   });
@@ -248,31 +247,31 @@ export function buildTracksPanel() {
       // Aplica el instrumento elegido a TODAS las pistas, pero solo para la
       // canción que se está reproduciendo (override temporal en memoria).
       // No sobrescribe la config guardada de otras canciones.
-      if (window.song && window.song.notes && window.song.notes.length) {
-        const total = Math.max(...window.song.notes.map(n => n.track), 0) + 1;
+      if (song && song.notes && song.notes.length) {
+        const total = Math.max(...song.notes.map(n => n.track), 0) + 1;
         // Si el toggle "mantener" está activo, no guardamos snapshot de
         // originales: el override persiste aunque se detenga la canción.
-        if (!window.__keepAllPreset && !window.song.__origPresets) {
-          window.song.__origPresets = {};
+        if (!getKeepAllPreset() && !song.__origPresets) {
+          song.__origPresets = {};
           for (let i = 0; i < total; i++) {
-            if (!window.trackSettings[i]) window.trackSettings[i] = {};
-            window.song.__origPresets[i] = window.trackSettings[i].preset || 'piano';
+            if (!trackSettings[i]) trackSettings[i] = {};
+            song.__origPresets[i] = trackSettings[i].preset || 'piano';
           }
         }
-        window.song.__tempPreset = value;
+        song.__tempPreset = value;
         for (let i = 0; i < total; i++) {
-          if (!window.trackSettings[i]) window.trackSettings[i] = {};
-          window.trackSettings[i].preset = value;
+          if (!trackSettings[i]) trackSettings[i] = {};
+          trackSettings[i].preset = value;
         }
         // Refleja el cambio en los demás selects de la UI sin recargar.
         list.querySelectorAll('[data-track-preset]').forEach(other => {
           if (other !== e.target) other.value = value;
         });
-        window.showToast(t('soundSourceAllApplied') || 'Instrumento aplicado a todas las pistas (esta canción)');
+        showToast(t('soundSourceAllApplied') || 'Instrumento aplicado a todas las pistas (esta canción)');
       } else {
         // Sin canción cargada: comportamiento normal (solo esta pista).
-        if (!window.trackSettings[idx]) window.trackSettings[idx] = {};
-        window.trackSettings[idx].preset = value;
+        if (!trackSettings[idx]) trackSettings[idx] = {};
+        trackSettings[idx].preset = value;
         saveConfig();
       }
     });
@@ -280,8 +279,8 @@ export function buildTracksPanel() {
   list.querySelectorAll('[data-track-volume]').forEach(inp => {
     inp.addEventListener('input', e => {
       const idx = +e.target.dataset.trackVolume;
-      if (!window.trackSettings[idx]) window.trackSettings[idx] = {};
-      window.trackSettings[idx].volume = +e.target.value / 100;
+      if (!trackSettings[idx]) trackSettings[idx] = {};
+      trackSettings[idx].volume = +e.target.value / 100;
       e.target.nextElementSibling.textContent = e.target.value + '%';
       saveConfig();
     });
@@ -289,8 +288,8 @@ export function buildTracksPanel() {
   list.querySelectorAll('[data-track-pan]').forEach(inp => {
     inp.addEventListener('input', e => {
       const idx = +e.target.dataset.trackPan;
-      if (!window.trackSettings[idx]) window.trackSettings[idx] = {};
-      window.trackSettings[idx].pan = +e.target.value / 100;
+      if (!trackSettings[idx]) trackSettings[idx] = {};
+      trackSettings[idx].pan = +e.target.value / 100;
       e.target.nextElementSibling.textContent = e.target.value;
       saveConfig();
     });
@@ -298,8 +297,8 @@ export function buildTracksPanel() {
   list.querySelectorAll('[data-track-detune]').forEach(inp => {
     inp.addEventListener('input', e => {
       const idx = +e.target.dataset.trackDetune;
-      if (!window.trackSettings[idx]) window.trackSettings[idx] = {};
-      window.trackSettings[idx].detune = +e.target.value;
+      if (!trackSettings[idx]) trackSettings[idx] = {};
+      trackSettings[idx].detune = +e.target.value;
       e.target.nextElementSibling.textContent = e.target.value;
       saveConfig();
     });
@@ -307,8 +306,8 @@ export function buildTracksPanel() {
   list.querySelectorAll('[data-track-reverb]').forEach(inp => {
     inp.addEventListener('input', e => {
       const idx = +e.target.dataset.trackReverb;
-      if (!window.trackSettings[idx]) window.trackSettings[idx] = {};
-      window.trackSettings[idx].reverb = +e.target.value / 100;
+      if (!trackSettings[idx]) trackSettings[idx] = {};
+      trackSettings[idx].reverb = +e.target.value / 100;
       e.target.nextElementSibling.textContent = e.target.value + '%';
       saveConfig();
     });
@@ -316,9 +315,9 @@ export function buildTracksPanel() {
   list.querySelectorAll('[data-track-eq-low]').forEach(inp => {
     inp.addEventListener('input', e => {
       const idx = +e.target.dataset.trackEqLow;
-      if (!window.trackSettings[idx]) window.trackSettings[idx] = {};
-      if (!window.trackSettings[idx].eq) window.trackSettings[idx].eq = { low: 0, mid: 0, high: 0 };
-      window.trackSettings[idx].eq.low = +e.target.value;
+      if (!trackSettings[idx]) trackSettings[idx] = {};
+      if (!trackSettings[idx].eq) trackSettings[idx].eq = { low: 0, mid: 0, high: 0 };
+      trackSettings[idx].eq.low = +e.target.value;
       e.target.nextElementSibling.textContent = e.target.value;
       saveConfig();
     });
@@ -326,9 +325,9 @@ export function buildTracksPanel() {
   list.querySelectorAll('[data-track-eq-mid]').forEach(inp => {
     inp.addEventListener('input', e => {
       const idx = +e.target.dataset.trackEqMid;
-      if (!window.trackSettings[idx]) window.trackSettings[idx] = {};
-      if (!window.trackSettings[idx].eq) window.trackSettings[idx].eq = { low: 0, mid: 0, high: 0 };
-      window.trackSettings[idx].eq.mid = +e.target.value;
+      if (!trackSettings[idx]) trackSettings[idx] = {};
+      if (!trackSettings[idx].eq) trackSettings[idx].eq = { low: 0, mid: 0, high: 0 };
+      trackSettings[idx].eq.mid = +e.target.value;
       e.target.nextElementSibling.textContent = e.target.value;
       saveConfig();
     });
@@ -336,9 +335,9 @@ export function buildTracksPanel() {
   list.querySelectorAll('[data-track-eq-high]').forEach(inp => {
     inp.addEventListener('input', e => {
       const idx = +e.target.dataset.trackEqHigh;
-      if (!window.trackSettings[idx]) window.trackSettings[idx] = {};
-      if (!window.trackSettings[idx].eq) window.trackSettings[idx].eq = { low: 0, mid: 0, high: 0 };
-      window.trackSettings[idx].eq.high = +e.target.value;
+      if (!trackSettings[idx]) trackSettings[idx] = {};
+      if (!trackSettings[idx].eq) trackSettings[idx].eq = { low: 0, mid: 0, high: 0 };
+      trackSettings[idx].eq.high = +e.target.value;
       e.target.nextElementSibling.textContent = e.target.value;
       saveConfig();
     });

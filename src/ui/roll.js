@@ -5,11 +5,25 @@
 import { rctx, resizeCanvases } from './canvas.js';
 import { getKeyLayout, isBlack } from './keys.js';
 import { CFG } from '../config.js';
-import { currentTheme, CHROMA_COLORS } from '../controls/drawer.js';
+import { currentTheme, CHROMA_COLORS } from '../drawer/themes.js';
 import { noteLabelName } from '../i18.js';
 import { song, appMode, freeNotes, trackSettings } from '../controls/playback.js';
 
-export const LOOKAHEAD = 2.2;
+// Lookahead base, en segundos. Es estado, no una constante: los presets de
+// dificultad lo adjustan (setLookahead), y la cámara dinámica de más abajo lo
+// lee como `LOOKAHEAD` en cada frame.
+//
+// Antes era `export const` y drawer.js hacía `window.LOOKAHEAD = ...`, que no
+// movía el const: el ajuste de lookahead de los presets era un no-op silencioso.
+export let LOOKAHEAD = 2.2;
+
+export function setLookahead(valor) {
+  // La cámara dinámica escala contra este valor (minLA/maxLA en
+  // updateDynamicCamera), así que 0 o un negativo dejarían la pista sin margen.
+  if (typeof valor !== 'number' || !Number.isFinite(valor) || valor <= 0) return false;
+  LOOKAHEAD = valor;
+  return true;
+}
 export const CORRECT_RGB = '111,191,115';
 export const WRONG_RGB = '217,83,79';
 
@@ -503,7 +517,9 @@ export function drawRoll() {
 
   // Notas cayendo
   if (CFG.flags.fallingNotes.value && song.notes && song.notes.length) {
-    const trackSettings = window.trackSettings || {};
+    // Sin esta línea, drawRoll leía window.trackSettings y drawFreeTiles leía
+    // el import de arriba: dos fuentes distintas para el mismo estado dentro
+    // del mismo fichero. Con el import se lee siempre el mismo objeto.
     const perspectiveOn = CFG.flags.perspective3D.value;
     const depthAmount = (CFG.perspectiveDepth || 0) / 100;
     song.notes.forEach(n => {

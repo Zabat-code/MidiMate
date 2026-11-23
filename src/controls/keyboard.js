@@ -4,10 +4,13 @@
 
 import { CFG, saveConfig, DEFAULT_KEYMAP, DEFAULTS } from '../config.js';
 import { t, noteLabelName } from '../i18.js';
-import { song, accuracy, appMode, freeNotes, pressedKeys, autoPressedNotes, hitFeedback, sustainedNotes, keyboardPedalDown, midiPedalDown, silenceAll, updatePlayButtonLabel, updateAccuracyBadge, showToast, setPlaybackState, setKeyboardPedalDown, setMidiPedalDown } from './playback.js';
+import { song, accuracy, appMode, freeNotes, pressedKeys, autoPressedNotes, hitFeedback, sustainedNotes, keyboardPedalDown, midiPedalDown, silenceAll, updatePlayButtonLabel, updateAccuracyBadge, showToast, seekBy, toggleMute, setVolume, setPlaybackState, setKeyboardPedalDown, setMidiPedalDown } from './playback.js';
 import { startVoice, stopVoice } from '../audio.js';
-import { spawnKeyEffect } from '../ui/roll.js';
-import { currentTheme, CHROMA_COLORS } from './drawer.js';
+import { setRemapPreviewNote, keyboardRange, keyLayout } from '../ui/keys.js';
+import { spawnKeyEffect, heldEffectStart } from '../ui/roll.js';
+import { currentTheme, CHROMA_COLORS } from '../drawer/themes.js';
+import { setDrawerOpen } from '../drawer/layout.js';
+import { buildFlagsPanel, applyFlags } from '../drawer/flags.js';
 
 export { pressedKeys, autoPressedNotes, hitFeedback, keyboardPedalDown, midiPedalDown, sustainedNotes } from './playback.js';
 
@@ -23,14 +26,14 @@ export function handleNoteOn(note, velocity) {
   if (CFG.tileSkin === 'chroma') {
     effectColor = CHROMA_COLORS[note % 12];
   } else {
-    const layout = window.keyLayout || {};
+    const layout = keyLayout || {};
     if (layout[note]) {
       effectColor = layout[note].black ? currentTheme().noteBlack : currentTheme().noteWhite;
     }
   }
   const mix = { volume: 1, pan: 0, detune: 0, reverb: 0, eq: { low: 0, mid: 0, high: 0 } };
   startVoice(note, velocity, mix);
-  window.heldEffectStart?.set(note, performance.now());
+  heldEffectStart.set(note, performance.now());
   if (appMode === 'practice' && song.notes.length) evaluateHit(note);
   else spawnKeyEffect(note, effectColor, effectColor);
   if (appMode === 'free') {
@@ -40,7 +43,7 @@ export function handleNoteOn(note, velocity) {
 
 export function handleNoteOff(note) {
   pressedKeys.delete(note);
-  window.heldEffectStart?.delete(note);
+  heldEffectStart.delete(note);
   if (appMode === 'free') {
     for (let i = freeNotes.length - 1; i >= 0; i--) {
       if (freeNotes[i].note === note && freeNotes[i].end == null) {
@@ -93,13 +96,17 @@ export function releaseSustainedNotes() {
   sustainedNotes.clear();
 }
 
+// Botón del header que se está reasignando. Antes en un global; es estado
+// interno de este módulo y nadie más lo lee.
+let remapPreviewButton = null;
+
 // Suelta el resaltado de la tecla/botón al terminar una reasignación.
 function endRemap() {
-  window.remapPreviewNote = null;
-  if (window.remapPreviewButton) {
-    const hbtn = document.getElementById(window.remapPreviewButton);
+  setRemapPreviewNote(null);
+  if (remapPreviewButton) {
+    const hbtn = document.getElementById(remapPreviewButton);
     if (hbtn) hbtn.classList.remove('flash-assign');
-    window.remapPreviewButton = null;
+    remapPreviewButton = null;
   }
 }
 
@@ -110,8 +117,8 @@ export function buildKeymapPanel() {
   list.innerHTML = '';
   const reverseMap = {};
   Object.entries(CFG.keymap).forEach(([pk, n]) => { reverseMap[n] = pk; });
-  const lo = window.keyboardRange?.lo || 36;
-  const hi = window.keyboardRange?.hi || 96;
+  const lo = keyboardRange?.lo || 36;
+  const hi = keyboardRange?.hi || 96;
   for (let note = lo; note <= hi; note++) {
     const physKey = reverseMap[note];
     const row = document.createElement('div');
@@ -126,7 +133,7 @@ export function buildKeymapPanel() {
       listeningForNote = +btn.dataset.remap;
       // Mostrar la tecla destino PRESIONADA de inmediato (mientras espera
       // la nueva tecla), sin tocar el sistema real de teclas presionadas.
-      window.remapPreviewNote = listeningForNote;
+      setRemapPreviewNote(listeningForNote);
       const badge = list.querySelector(`.key-badge[data-note="${listeningForNote}"]`);
       if (badge) {
         badge.textContent = '...';
@@ -185,7 +192,7 @@ export function buildShortcutsPanel() {
       listeningForShortcut = btn.dataset.remapShortcut;
       // Hacer parpadear el botón del header relacionado mientras se asigna.
       const btnId = SHORTCUT_TO_BUTTON[listeningForShortcut];
-      window.remapPreviewButton = btnId || null;
+      remapPreviewButton = btnId || null;
       const hbtn = btnId && document.getElementById(btnId);
       if (hbtn) hbtn.classList.add('flash-assign');
       const badge = list.querySelector(`.key-badge[data-shortcut="${listeningForShortcut}"]`);
@@ -256,7 +263,7 @@ export function initKeyboardEvents() {
 
     // Preview en vivo de la tecla mientras se reasigna: el badge muestra
     // la tecla física que el usuario va presionando. La tecla del piano se
-    // resalta vía window.remapPreviewNote (puesto al entrar en escucha).
+    // resalta vía remapPreviewNote (puesto al entrar en escucha).
     if (listeningForNote != null || listeningForShortcut) {
       const nkPrev = normalizeKey(e);
       const list = document.getElementById('keymapList');
@@ -306,32 +313,33 @@ export function initKeyboardEvents() {
       endRemap();
       listeningForNote = null;
       listeningForShortcut = null;
-      window.setDrawerOpen?.(!document.getElementById('drawer').classList.contains('open'));
+      setDrawerOpen(!document.getElementById('drawer').classList.contains('open'));
       return;
     }
     if (!isFormField) {
       const shortcuts = CFG.shortcuts;
       if (nk === shortcuts.playPause) { e.preventDefault(); document.getElementById('btnPlay')?.click(); return; }
-      if (nk === shortcuts.seekBack) { e.preventDefault(); window.seekBy?.(-5); return; }
-      if (nk === shortcuts.seekFwd) { e.preventDefault(); window.seekBy?.(5); return; }
-      if (nk === shortcuts.mute && !e.ctrlKey && !e.metaKey && !e.altKey) { window.toggleMute?.(); return; }
+      if (nk === shortcuts.seekBack) { e.preventDefault(); seekBy(-5); return; }
+      if (nk === shortcuts.seekFwd) { e.preventDefault(); seekBy(5); return; }
+      if (nk === shortcuts.mute && !e.ctrlKey && !e.metaKey && !e.altKey) { toggleMute(); return; }
       if (nk === shortcuts.fullscreen) { document.getElementById('btnFullscreen')?.click(); return; }
       if (nk === shortcuts.sustainToggle) {
         CFG.flags.sustainHold.value = !CFG.flags.sustainHold.value;
-        window.buildFlagsPanel?.();
+        buildFlagsPanel();
         saveConfig();
         return;
       }
       if (nk === shortcuts.openFile) { document.getElementById('midiFile')?.click(); return; }
-      if (nk === shortcuts.volUp) { window.setVolume?.(Math.round(CFG.volume * 100) + 5); return; }
-      if (nk === shortcuts.volDown) { window.setVolume?.(Math.round(CFG.volume * 100) - 5); return; }
+      if (nk === shortcuts.volUp) { setVolume(Math.round(CFG.volume * 100) + 5); return; }
+      if (nk === shortcuts.volDown) { setVolume(Math.round(CFG.volume * 100) - 5); return; }
       if (nk === shortcuts.obsClean) {
         CFG.flags.obsCleanMode.value = !CFG.flags.obsCleanMode.value;
-        window.applyFlags?.();
-        window.buildFlagsPanel?.();
+        applyFlags();
+        buildFlagsPanel();
         saveConfig();
         return;
       }
+      if (nk === shortcuts.mini) { document.getElementById('btnMini')?.click(); return; }
       if (nk === shortcuts.playlistPrev) {
         document.getElementById('btnPlaylistPrev')?.click();
         return;
@@ -347,7 +355,7 @@ export function initKeyboardEvents() {
     }
 
     if (e.ctrlKey || e.metaKey || e.altKey) return;
-    const k = e.key.toLowerCase();
+    const k = physicalKey(e);
     if (listeningForNote != null) {
       // Detectar si la tecla física ya está en uso (otra nota o algún atajo).
       const conflictNote = Object.keys(CFG.keymap).find(pk => pk === k && CFG.keymap[pk] !== listeningForNote);
@@ -396,11 +404,25 @@ export function initKeyboardEvents() {
       if (!pedalIsDown()) releaseSustainedNotes();
       return;
     }
-    const k = e.key.toLowerCase();
+    const k = physicalKey(e);
     if (CFG.keymap[k] != null) {
       handleNoteOff(CFG.keymap[k]);
     }
   });
+}
+
+// Tecla FÍSICA por POSICIÓN (e.code), no por carácter (e.key).
+// Con e.key el mapa dependía del layout: en español/latinoamericano la tecla
+// física de ';' produce 'ñ' y la de "'" produce '´', así que las teclas del
+// keymap por defecto sonaban distinto o no sonaban. Con e.code la tecla es la
+// misma posición física en cualquier layout.
+function physicalKey(e) {
+  if (e.code) {
+    if (e.code.startsWith('Key')) return e.code.slice(3).toLowerCase();
+    if (e.code === 'Semicolon') return ';';
+    if (e.code === 'Quote') return "'";
+  }
+  return e.key.toLowerCase();
 }
 
 function normalizeKey(e) {

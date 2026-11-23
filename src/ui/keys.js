@@ -4,26 +4,37 @@
 
 import { kctx } from './canvas.js';
 import { CFG } from '../config.js';
-import { currentTheme, CHROMA_COLORS } from '../controls/drawer.js';
+import { currentTheme, CHROMA_COLORS } from '../drawer/themes.js';
 import { noteLabelName } from '../i18.js';
+import { song, pressedKeys, autoPressedNotes, hitFeedback } from '../song-state.js';
 
 // ===== ESTADO =====
 export let keyLayout = {};
-let pressedKeys = new Set();
-let autoPressedNotes = new Set();
-let hitFeedback = new Map();
+// Rango de teclas en uso. Lo escribe drawer.js al aplicar un preset de
+// dificultad y lo leía keyboard.js a través de un global; aquí convive con
+// keyLayout, que ya es su sitio natural.
+export let keyboardRange = { lo: 36, hi: 96 };
+export function setKeyboardRange(lo, hi) { keyboardRange = { lo, hi }; }
+
+// Nota que se está escuchando al reasignar una tecla. La escribe keyboard.js y
+// la necesita drawKeys para resaltarla; antes vivía en un global sin dueño.
+export let remapPreviewNote = null;
+export function setRemapPreviewNote(note) { remapPreviewNote = (note == null) ? null : note; }
+
+// El panel de keymap lo construye keyboard.js, que no puede importar este
+// módulo sin cerrar un ciclo con drawer.js. Se registra aquí el constructor.
+let keymapPanelBuilder = null;
+export function setKeymapPanelBuilder(fn) { keymapPanelBuilder = typeof fn === 'function' ? fn : null; }
+
+// El estado de entrada real vive en song-state.js. Estas tres locales eran
+// muertas: su setter no lo llamaba nadie, y por eso drawKeys leía los globales
+// de entrada en su lugar.
 let noteNaming = 'en';
 let showNoteNames = false;
 let keySkin = 'classic';
 let harmonizePalette = null;
 
 // ===== SETTERS =====
-export function setKeyState(pressed, auto, feedback) {
-  pressedKeys = pressed;
-  autoPressedNotes = auto;
-  hitFeedback = feedback;
-}
-
 export function setKeyLayout(layout) {
   keyLayout = layout;
 }
@@ -57,7 +68,6 @@ export function buildKeyLayout(lo, hi) {
 }
 
 export function applyKeyboardRange() {
-  const song = window.song || { notes: [] };
   if (CFG.visibleKeyCount === 'opt2') {
     keyLayout = buildKeyLayout(48, 89);      // Compacto: C3 – F6
   } else if (CFG.visibleKeyCount === 'opt3') {
@@ -65,7 +75,7 @@ export function applyKeyboardRange() {
   } else if (CFG.visibleKeyCount === 'opt4') {
     keyLayout = buildKeyLayout(21, 108);     // Todas las teclas (88)
   } else if (CFG.visibleKeyCount === 'auto' || CFG.visibleKeyCount === 'opt5') {
-    if (song.notes && song.notes.length) {
+    if (song && song.notes && song.notes.length) {
       const minN = Math.min(...song.notes.map(n => n.note));
       const maxN = Math.max(...song.notes.map(n => n.note));
       const lo = Math.max(21, minN - 1);
@@ -76,7 +86,7 @@ export function applyKeyboardRange() {
     }
   } else {
     const count = +CFG.visibleKeyCount || 25;
-    const center = (song.notes && song.notes.length)
+    const center = (song && song.notes && song.notes.length)
       ? Math.round((Math.min(...song.notes.map(n => n.note)) + Math.max(...song.notes.map(n => n.note))) / 2)
       : 60;
     let lo = Math.max(21, center - Math.floor(count / 2));
@@ -84,7 +94,7 @@ export function applyKeyboardRange() {
     lo = Math.max(21, hi - count + 1);
     keyLayout = buildKeyLayout(lo, hi);
   }
-  if (window.buildKeymapPanel) window.buildKeymapPanel();
+  if (keymapPanelBuilder) keymapPanelBuilder();
 }
 
 export function noteAtPoint(px, py) {
@@ -123,11 +133,10 @@ export function drawKeys() {
   const palette = harmonizePalette || CFG.harmonizePalette || null;
   const naming = CFG.noteNaming || 'en';
   const showNames = showNoteNames || CFG.flags.showNoteNames.value || false;
-  // Usar window.pressedKeys directamente (setKeyState nunca se llama)
-  const pressed = window.pressedKeys || new Set();
-  const autoPressed = window.autoPressedNotes || new Set();
-  const feedback = window.hitFeedback || new Map();
-  const remapPreview = (window.remapPreviewNote != null) ? window.remapPreviewNote : -1;
+  const pressed = pressedKeys || new Set();
+  const autoPressed = autoPressedNotes || new Set();
+  const feedback = hitFeedback || new Map();
+  const remapPreview = (remapPreviewNote != null) ? remapPreviewNote : -1;
   const isDown = (note) => pressed.has(note) || autoPressed.has(note) || note === remapPreview;
   const fb = (note) => feedback.get(note);
 

@@ -4,6 +4,7 @@
 
 import { CFG } from './config.js';
 import { showToast } from './controls/playback.js';
+import { playlist, currentPlaylistIndex } from './playlist-store.js';
 
 // ===== MANEJO GLOBAL DE ERRORES =====
 // Captura cualquier error no controlado (JS o promesas rechazadas) para que
@@ -190,8 +191,8 @@ function getAppState() {
   // Playlist
   parts.push('');
   parts.push('--- PLAYLIST ---');
-  parts.push('Elementos: ' + (window.playlist?.length || 0));
-  parts.push('Current index: ' + (window.currentPlaylistIndex ?? -1));
+  parts.push('Elementos: ' + (playlist.length || 0));
+  parts.push('Current index: ' + currentPlaylistIndex);
 
   // Active configuration
   parts.push('');
@@ -241,6 +242,12 @@ function formatTime(s) {
 export function initReportButton() {
   const btn = document.getElementById('btnReporte');
   if (!btn) return;
+  // Idempotente a propósito: la llamaban main.js (init) y drawer.js
+  // (initDrawerEvents), así que el botón acababa con dos listeners y cada clic
+  // descargaba el TXT dos veces. El flag en el nodo lo hace segura aunque se
+  // vuelva a llamar tras un rebuild del drawer.
+  if (btn.dataset.reportBound) return;
+  btn.dataset.reportBound = '1';
   btn.addEventListener('click', function() {
     let reporte = '=== REPORTE DE FUNCIONES DE LA APP ===\n';
     reporte += `Generado: ${new Date().toLocaleString()}\n`;

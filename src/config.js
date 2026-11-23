@@ -2,6 +2,11 @@
 // src/config.js - Configuración y persistencia
 // ============================================================
 
+// song-state.js y playlist-store.js no importan nada, así que este módulo puede
+// consumir su estado sin cerrar ningún ciclo con playback.js.
+import { trackSettings } from './song-state.js';
+import { playlist } from './playlist-store.js';
+
 export const STORAGE_KEY = 'recital-config-v6';
 
 export const DEFAULT_KEYMAP = {
@@ -79,11 +84,13 @@ export const DEFAULTS = {
   },
   controlVisibility: {
     play: true,
+    connectApi: true,
     transport: true,
     midiIn: true,
     tempo: true,
     volume: true,
     fullscreen: true,
+    mini: true,
     loop: true,
     playlist: true,
     playlistPrev: true,
@@ -127,6 +134,7 @@ export const DEFAULTS = {
     fullscreen: '8',
     stop: '9',
     obsClean: '0',
+    mini: 'n',
     seekBack: 'arrowleft',
     seekFwd: 'arrowright',
     volUp: 'arrowup',
@@ -177,14 +185,24 @@ export function loadConfig() {
   }
 }
 
+// Debounce del guardado. Antes era window._saveTimer: un global privado que
+// sólo tocaba este módulo, y que la guarda de globals de boot.test.js
+// señalaba como colgando.
+let saveTimer = null;
+
 export function saveConfig() {
   if (!CFG) return;
-  clearTimeout(window._saveTimer);
-  window._saveTimer = setTimeout(() => {
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
     try {
-      // Asegurarse de que trackSettings y playlist estén actualizados
-      if (window.trackSettings) CFG.trackSettings = window.trackSettings;
-      if (window.playlist) CFG.playlist = window.playlist;
+      // Volcar el estado vivo a CFG antes de serializar. Antes esto leía
+      // window.trackSettings y una referencia suelta a `playlist` que este
+      // módulo nunca importó: el ReferenceError lo tragaba el catch de abajo y
+      // localStorage.setItem no llegaba a ejecutarse, así que la configuración
+      // (incluida la lista) no se guardaba nunca.
+      // song-state.js y playlist-store.js no importan nada, luego no hay ciclo.
+      CFG.trackSettings = trackSettings;
+      if (playlist.length) CFG.playlist = [...playlist];
       localStorage.setItem(STORAGE_KEY, JSON.stringify(CFG));
     } catch (e) {
       console.warn('No se pudo guardar la configuración:', e);

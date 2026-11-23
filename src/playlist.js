@@ -5,11 +5,18 @@
 import { CFG, saveConfig } from './config.js';
 import { t } from './i18.js';
 import { parseMidi, midiToNotes } from './midi.js';
-import { actx } from './audio.js';
-import { setPrevCursorTime } from './controls/playback.js';
+import { actx, analyzeAndOptimizeMidi } from './audio.js';
+import {
+  setPrevCursorTime, applyMode, song, trackSettings, showToast, silenceAll,
+  updatePlayButtonLabel, updateAccuracyBadge, setMidiTracks
+} from './controls/playback.js';
+import { programToPresetName, extractProgramsFromTrack, buildTracksPanel } from './controls/tracks.js';
+import { playlist, currentPlaylistIndex, setCurrentPlaylistIndex, setPlaylistAdvanceHandler } from './playlist-store.js';
 
-export let playlist = [];
-export let currentPlaylistIndex = -1;
+// El estado vive en playlist-store.js. Se reexporta aquí porque main.js y
+// otros consumidores lo importarían aquí, y cambiar eso todo de golpe no aporta
+// nada mientras el store siga siendo la única fuente.
+export { playlist, currentPlaylistIndex, setCurrentPlaylistIndex } from './playlist-store.js';
 
 export function syncPlaylistFromConfig() {
   if (CFG && Array.isArray(CFG.playlist)) {
@@ -17,7 +24,6 @@ export function syncPlaylistFromConfig() {
   } else {
     playlist.splice(0, playlist.length);
   }
-  if (typeof window !== 'undefined') window.playlist = playlist;
 }
 
 function stripExt(name = '') {
@@ -27,7 +33,7 @@ function stripExt(name = '') {
 function updatePlaylistBadge() {
   const el = document.getElementById('logoLabel');
   if (!el) return;
-  const activeName = window.song?.fileName || '';
+  const activeName = song?.fileName || '';
   if (playlist.length > 1 && currentPlaylistIndex >= 0) {
     el.textContent = `${stripExt(activeName)} [${currentPlaylistIndex + 1}/${playlist.length}]`;
   } else {
@@ -44,17 +50,17 @@ function refreshPlaylistButtons() {
 
 function selectPlaylistItem(index) {
   if (index < 0 || index >= playlist.length) return;
-  currentPlaylistIndex = index;
-  window.currentPlaylistIndex = currentPlaylistIndex;
+  setCurrentPlaylistIndex(index);
   renderPlaylist();
   loadPlaylistAt(index, false);
 }
 
 export function loadSongData(notes, duration, fileName, bpm, existingColors = {}) {
-  const song = window.song;
+  // `song` es el objeto de playback.js (importado arriba), mutable in-place:
+  // se le pueden asignar las propiedades sin tocar la referencia.
   if (!song) return;
   // Mute any active audio before loading a new song
-  window.silenceAll?.();
+  silenceAll?.();
   song.notes = notes || [];
   song.duration = duration || 0;
   song.fileName = fileName || null;
@@ -65,10 +71,10 @@ export function loadSongData(notes, duration, fileName, bpm, existingColors = {}
   song.countIn = null;
   song.playing = false;
   setPrevCursorTime(0);
-  if (window.trackSettings && typeof existingColors === 'object') {
+  if (trackSettings && typeof existingColors === 'object') {
     Object.entries(existingColors).forEach(([idx, color]) => {
-      if (!window.trackSettings[idx]) window.trackSettings[idx] = {};
-      window.trackSettings[idx].color = color;
+      if (!trackSettings[idx]) trackSettings[idx] = {};
+      trackSettings[idx].color = color;
     });
   }
   // Habilitar botones de transporte
@@ -84,21 +90,20 @@ export function loadSongData(notes, duration, fileName, bpm, existingColors = {}
   if (song.notes.length && window.applyKeyboardRange) {
     window.applyKeyboardRange();
   }
-  window.updatePlayButtonLabel?.();
-  window.updateAccuracyBadge?.();
-  window.buildTracksPanel?.();
+  updatePlayButtonLabel?.();
+  updateAccuracyBadge?.();
+  buildTracksPanel?.();
   updatePlaylistBadge();
   refreshPlaylistButtons();
   // Analyze and auto-optimize sound when loading each song
   setTimeout(() => {
-    window.analyzeAndOptimizeMidi?.();
+    analyzeAndOptimizeMidi?.();
   }, 50);
 }
 
 export function loadPlaylistAt(idx, autoPlay = false) {
   if (!playlist.length) return;
-  currentPlaylistIndex = ((idx % playlist.length) + playlist.length) % playlist.length;
-  window.currentPlaylistIndex = currentPlaylistIndex;
+  setCurrentPlaylistIndex(((idx % playlist.length) + playlist.length) % playlist.length);
   renderPlaylist();
   const entry = playlist[currentPlaylistIndex];
   if (!entry?.dataUrl) return;
@@ -120,14 +125,14 @@ export function loadPlaylistAt(idx, autoPlay = false) {
         }
         const bpm = 60000000 / initialTempo;
         // Detectar instrumentos de cada pista del MIDI
-        if (window.trackSettings && window.extractProgramsFromTrack && window.programToPresetName) {
+        if (trackSettings && extractProgramsFromTrack && programToPresetName) {
           parsed.tracks.forEach((events, trackIdx) => {
-            const progs = window.extractProgramsFromTrack(events);
+            const progs = extractProgramsFromTrack(events);
             if (progs.length) {
               const lastProg = progs[progs.length - 1].prog;
-              if (!window.trackSettings[trackIdx]) window.trackSettings[trackIdx] = {};
-              if (!window.trackSettings[trackIdx].preset) {
-                window.trackSettings[trackIdx].preset = window.programToPresetName(lastProg);
+              if (!trackSettings[trackIdx]) trackSettings[trackIdx] = {};
+              if (!trackSettings[trackIdx].preset) {
+                trackSettings[trackIdx].preset = programToPresetName(lastProg);
               }
             }
           });
@@ -135,11 +140,11 @@ export function loadPlaylistAt(idx, autoPlay = false) {
         // Guardar TODAS las pistas del MIDI (con y sin notas) para que el
         // panel de pistas pueda mencionarlas aunque alguna no tenga notas
         // (p.ej. la pista 1 de metadatos).
-        window._midiTracks = parsed.tracks;
+        setMidiTracks(parsed.tracks);
         const existingColors = {};
-        if (window.trackSettings) {
-          Object.keys(window.trackSettings).forEach(idx => {
-            if (window.trackSettings[idx]?.color) existingColors[idx] = window.trackSettings[idx].color;
+        if (trackSettings) {
+          Object.keys(trackSettings).forEach(idx => {
+            if (trackSettings[idx]?.color) existingColors[idx] = trackSettings[idx].color;
           });
         }
         loadSongData(notes, duration, entry.name, bpm, existingColors);
@@ -147,15 +152,15 @@ export function loadPlaylistAt(idx, autoPlay = false) {
         if (autoPlay) {
           document.getElementById('btnPlay')?.click();
         } else {
-          window.showToast(`${currentPlaylistIndex + 1}/${playlist.length} · ${entry.name}`);
+          showToast(`${currentPlaylistIndex + 1}/${playlist.length} · ${entry.name}`);
           // No mostrar el modal de modo al navegar la lista: mantener el modo actual
         }
       } catch (e) {
-        window.showToast('Error al cargar siguiente: ' + e.message);
+        showToast('Error al cargar siguiente: ' + e.message);
       }
     })
     .catch(e => {
-      window.showToast('Error al cargar archivo: ' + e.message);
+      showToast('Error al cargar archivo: ' + e.message);
     });
 }
 
@@ -163,10 +168,9 @@ function movePlaylistItem(from, to) {
   if (from < 0 || to < 0 || from >= playlist.length || to >= playlist.length) return;
   const [item] = playlist.splice(from, 1);
   playlist.splice(to, 0, item);
-  if (currentPlaylistIndex === from) currentPlaylistIndex = to;
-  else if (from < currentPlaylistIndex && to >= currentPlaylistIndex) currentPlaylistIndex--;
-  else if (from > currentPlaylistIndex && to <= currentPlaylistIndex) currentPlaylistIndex++;
-  window.currentPlaylistIndex = currentPlaylistIndex;
+  if (currentPlaylistIndex === from) setCurrentPlaylistIndex(to);
+  else if (from < currentPlaylistIndex && to >= currentPlaylistIndex) setCurrentPlaylistIndex(currentPlaylistIndex - 1);
+  else if (from > currentPlaylistIndex && to <= currentPlaylistIndex) setCurrentPlaylistIndex(currentPlaylistIndex + 1);
   saveConfig();
   renderPlaylist();
 }
@@ -245,9 +249,8 @@ export function renderPlaylist() {
         const idx = parseInt(this.dataset.index);
         playlist.splice(idx, 1);
         if (currentPlaylistIndex >= idx) {
-          currentPlaylistIndex = Math.max(-1, currentPlaylistIndex - 1);
-          window.currentPlaylistIndex = currentPlaylistIndex;
-        }
+          setCurrentPlaylistIndex(Math.max(-1, currentPlaylistIndex - 1));
+                }
         saveConfig();
         renderPlaylist();
       });
@@ -268,9 +271,9 @@ export function loadMidiFile(file, addToPlaylist = false) {
         playlist.push({ name: fileName, dataUrl: reader.result });
         saveConfig();
         renderPlaylist();
-        window.showToast(`Added: ${fileName}`);
+        showToast(`Added: ${fileName}`);
       } catch (err) {
-        window.showToast(t('errorReadingMidi') + err.message);
+        showToast(t('errorReadingMidi') + err.message);
       }
     };
     reader.readAsDataURL(file);
@@ -294,30 +297,27 @@ export function loadMidiFile(file, addToPlaylist = false) {
       }
       const bpm = 60000000 / initialTempo;
       // Detectar instrumentos de cada pista del MIDI
-      if (window.trackSettings && window.extractProgramsFromTrack && window.programToPresetName) {
+      if (trackSettings && extractProgramsFromTrack && programToPresetName) {
         parsed.tracks.forEach((events, trackIdx) => {
-          const progs = window.extractProgramsFromTrack(events);
+          const progs = extractProgramsFromTrack(events);
           if (progs.length) {
             const lastProg = progs[progs.length - 1].prog;
-            if (!window.trackSettings[trackIdx]) window.trackSettings[trackIdx] = {};
-            if (!window.trackSettings[trackIdx].preset) {
-              window.trackSettings[trackIdx].preset = window.programToPresetName(lastProg);
+            if (!trackSettings[trackIdx]) trackSettings[trackIdx] = {};
+            if (!trackSettings[trackIdx].preset) {
+              trackSettings[trackIdx].preset = programToPresetName(lastProg);
             }
           }
         });
       }
       // Guardar TODAS las pistas del MIDI (con y sin notas) para el panel.
-      window._midiTracks = parsed.tracks;
-      currentPlaylistIndex = -1;
-      window.currentPlaylistIndex = currentPlaylistIndex;
-      if (window.loadSongData) {
-        window.loadSongData(notes, duration, fileName, bpm);
-      }
+      setMidiTracks(parsed.tracks);
+      setCurrentPlaylistIndex(-1);
+          loadSongData(notes, duration, fileName, bpm);
       updatePlaylistBadge();
       refreshPlaylistButtons();
       document.getElementById('modePromptModal')?.classList.add('open');
     } catch (err) {
-      window.showToast(t('errorReadingMidi') + err.message);
+      showToast(t('errorReadingMidi') + err.message);
     }
   };
   reader.readAsArrayBuffer(file);
@@ -325,49 +325,13 @@ export function loadMidiFile(file, addToPlaylist = false) {
 
 export function playNextFromPlaylist() {
   if (!playlist.length) return;
-  window.currentPlaylistIndex = currentPlaylistIndex;
-  loadPlaylistAt(currentPlaylistIndex + 1, !!window.song?.playing);
+  loadPlaylistAt(currentPlaylistIndex + 1, !!song?.playing);
 }
 
-if (typeof window !== 'undefined') {
-  window.loadSongData = loadSongData;
-  window.loadPlaylistAt = loadPlaylistAt;
-  window.playNextFromPlaylist = playNextFromPlaylist;
-}
-
-// ===== REPORTE =====
-export function initReportButton() {
-  const btn = document.getElementById('btnReporte');
-  if (!btn) return;
-  btn.addEventListener('click', () => {
-    if (window.usarFuncion) window.usarFuncion('initReportButton');
-    // Generar reporte de funciones
-    let report = 'FUNCTION REPORT - MidiMate\n';
-    report += '='.repeat(50) + '\n\n';
-    
-    const categories = {};
-    Object.entries(window._funcionesRegistro || {}).forEach(([key, data]) => {
-      if (!categories[data.categoria]) categories[data.categoria] = [];
-      categories[data.categoria].push(data);
-    });
-    
-    Object.entries(categories).forEach(([cat, funcs]) => {
-      report += `\n${cat}\n${'-'.repeat(50)}\n`;
-      funcs.forEach(f => {
-        report += `  ${f.nombre}\n    ${f.descripcion}\n    Usos: ${f.usos}\n\n`;
-      });
-    });
-    
-    const blob = new Blob([report], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `reporte_funciones_${new Date().toISOString().replace(/:/g, '-')}.txt`;
-    a.click();
-    URL.revokeObjectURL(url);
-    if (window.showToast) window.showToast('Reporte generado correctamente');
-  });
-}
+// playback.js pide "pasa a la siguiente" al terminar la canción (loop de
+// canción) sin poder importar este módulo, porque este módulo ya lo importa a
+// él. Se registra aquí una vez y el store lo reparte.
+setPlaylistAdvanceHandler(playNextFromPlaylist);
 
 // ===== PLAYLIST BUTTON =====
 export function initPlaylistButton() {
@@ -390,41 +354,44 @@ export function initPlaylistButton() {
 }
 
 // ===== EVENTOS =====
+// Intención del selector de archivos: 'load' o 'add'. Antes se asignaba sin
+// declarar; en un módulo ESM eso es ReferenceError y el handler 'change'
+// moría antes de leer el archivo, así que cargar un MIDI no hacia nada.
+let playlistIntent = null;
+
 export function initPlaylistEvents() {
   document.getElementById('btnLoad')?.addEventListener('click', () => {
-    window.__playlistIntent = 'load';
+    playlistIntent = 'load';
     document.getElementById('midiFile')?.click();
   });
   document.getElementById('btnAddToPlaylist')?.addEventListener('click', () => {
-    window.__playlistIntent = 'add';
+    playlistIntent = 'add';
     document.getElementById('midiFile')?.click();
   });
   document.getElementById('modePromptPractice')?.addEventListener('click', () => {
-    window.appMode = 'practice';
-    window.applyMode?.('practice');
+    applyMode('practice');
     document.getElementById('modePromptModal')?.classList.remove('open');
   });
   document.getElementById('modePromptWatch')?.addEventListener('click', () => {
-    window.appMode = 'watch';
-    window.applyMode?.('watch');
+    applyMode('watch');
     document.getElementById('modePromptModal')?.classList.remove('open');
   });
   document.getElementById('btnPlaylistPrev')?.addEventListener('click', () => {
     if (!playlist.length) return;
-    loadPlaylistAt(currentPlaylistIndex - 1, window.song?.playing);
+    loadPlaylistAt(currentPlaylistIndex - 1, song?.playing);
     refreshPlaylistButtons();
   });
   document.getElementById('btnPlaylistNext')?.addEventListener('click', () => {
     if (!playlist.length) return;
-    loadPlaylistAt(currentPlaylistIndex + 1, window.song?.playing);
+    loadPlaylistAt(currentPlaylistIndex + 1, song?.playing);
     refreshPlaylistButtons();
   });
 
   document.getElementById('midiFile')?.addEventListener('change', function(e) {
     const files = e.target.files;
     if (!files.length) return;
-    const intent = window.__playlistIntent || 'load';
-    window.__playlistIntent = null;
+    const intent = playlistIntent || 'load';
+    playlistIntent = null;
 
     if (intent === 'add') {
       const wasEmpty = playlist.length === 0;
@@ -439,7 +406,7 @@ export function initPlaylistEvents() {
                 if (wasEmpty) selectPlaylistItem(0);
                 saveConfig();
                 renderPlaylist();
-                window.showToast(`${files.length} files added to the playlist`);
+                showToast(`${files.length} files added to the playlist`);
               }
             } catch (e) {}
           };
@@ -453,7 +420,7 @@ export function initPlaylistEvents() {
             if (wasEmpty) selectPlaylistItem(0);
             saveConfig();
             renderPlaylist();
-            window.showToast(`Added: ${files[0].name}`);
+            showToast(`Added: ${files[0].name}`);
           } catch (e) {}
         };
         reader.readAsDataURL(files[0]);
@@ -471,7 +438,7 @@ export function initPlaylistEvents() {
             if (i === files.length - 1) {
               saveConfig();
               renderPlaylist();
-              window.showToast(`${files.length} files added to the playlist`);
+              showToast(`${files.length} files added to the playlist`);
             }
           } catch (e) {}
         };
@@ -488,7 +455,7 @@ export function initPlaylistEvents() {
             playlist.push({ name: files[0].name, dataUrl: ev.target.result });
             saveConfig();
             renderPlaylist();
-            window.showToast(`Added: ${files[0].name}`);
+            showToast(`Added: ${files[0].name}`);
           } catch (e) {}
         };
         reader.readAsDataURL(files[0]);
@@ -515,7 +482,7 @@ export function initPlaylistEvents() {
     const files = [...(e.dataTransfer?.files || [])];
     const midiFiles = files.filter(f => /\.(mid|midi)$/i.test(f.name));
     if (!midiFiles.length) {
-      window.showToast(t('dropNotMidi'));
+      showToast(t('dropNotMidi'));
       return;
     }
     if (midiFiles.length > 1) {
@@ -530,7 +497,7 @@ export function initPlaylistEvents() {
       });
       saveConfig();
       renderPlaylist();
-      window.showToast(`${midiFiles.length} files added to the playlist`);
+      showToast(`${midiFiles.length} files added to the playlist`);
       return;
     }
     // Cargar directamente sin preguntar

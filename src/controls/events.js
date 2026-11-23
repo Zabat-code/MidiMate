@@ -2,30 +2,42 @@
 // src/controls/events.js - Eventos globales faltantes
 // ============================================================
 
-import { CFG } from '../config.js';
+import { CFG, saveConfig } from '../config.js';
 import { resizeCanvases } from '../ui/canvas.js';
 import { noteAtPoint } from '../ui/keys.js';
 import { handleNoteOn, handleNoteOff } from './keyboard.js';
 import { silenceAll, applyMode, resetMouseIdle } from './playback.js';
-import { applyDrawerLayout } from './drawer.js';
+import { applyDrawerLayout } from '../drawer/layout.js';
+import { buildFlagsPanel } from '../drawer/flags.js';
+import { pressedKeys } from '../song-state.js';
 import { isFullscreen } from './transport.js';
 
 // ===== CLIC EN TECLADO VIRTUAL =====
+// Nota que se empezó a sonar con el mouse. Se guarda para soltar SIEMPRE la
+// misma, aunque el cursor se mueva entre mousedown y mouseup (o el botón se
+// suelte fuera del canvas). Antes la nota se recalculaba en el mouseup: si el
+// cursor se había movido, soltaba otra distinta y la original quedaba pegada.
+let mouseNote = null;
+
 function pointerNoteHandler(isDown) {
   return (e) => {
     if (!CFG.flags.virtualKeyboardClicks.value) return;
     const canvas = document.getElementById('keysCanvas');
     if (!canvas) return;
-    const rect = canvas.getBoundingClientRect();
-    const px = e.clientX - rect.left;
-    const py = e.clientY - rect.top;
-    const note = noteAtPoint(px, py);
-    if (note == null) return;
-    const pressed = window.pressedKeys || new Set();
     if (isDown) {
-      if (!pressed.has(note)) handleNoteOn(note, 100);
-    } else {
-      handleNoteOff(note);
+      const rect = canvas.getBoundingClientRect();
+      const px = e.clientX - rect.left;
+      const py = e.clientY - rect.top;
+      const note = noteAtPoint(px, py);
+      if (note == null) return;
+      const pressed = pressedKeys || new Set();
+      if (!pressed.has(note)) {
+        handleNoteOn(note, 100);
+        mouseNote = note;
+      }
+    } else if (mouseNote != null) {
+      handleNoteOff(mouseNote);
+      mouseNote = null;
     }
   };
 }
@@ -55,7 +67,7 @@ function initTouchEvents(keysCanvas) {
       const note = touchToNote(keysCanvas, touch);
       if (note == null) continue;
       activeTouchNotes.set(touch.identifier, note);
-      const pressed = window.pressedKeys || new Set();
+      const pressed = pressedKeys || new Set();
       if (!pressed.has(note)) handleNoteOn(note, 100);
     }
   };
@@ -72,7 +84,7 @@ function initTouchEvents(keysCanvas) {
       if (prevNote != null) handleNoteOff(prevNote);
       if (note != null) {
         activeTouchNotes.set(touch.identifier, note);
-        const pressed = window.pressedKeys || new Set();
+        const pressed = pressedKeys || new Set();
         if (!pressed.has(note)) handleNoteOn(note, 100);
       } else {
         activeTouchNotes.delete(touch.identifier);
@@ -102,8 +114,8 @@ function initTouchEvents(keysCanvas) {
   keysCanvas.addEventListener('touchstart', function autoEnable() {
     if (!CFG.flags.touchMode.value) {
       CFG.flags.touchMode.value = true;
-      window.buildFlagsPanel?.();
-      window.saveConfig?.();
+      buildFlagsPanel();
+      saveConfig();
     }
     document.body.classList.add('touch-device');
     keysCanvas.removeEventListener('touchstart', autoEnable);
@@ -116,9 +128,16 @@ export function initGlobalEvents() {
   const keysCanvas = document.getElementById('keysCanvas');
   if (keysCanvas) {
     keysCanvas.addEventListener('mousedown', pointerNoteHandler(true));
-    keysCanvas.addEventListener('mouseup', pointerNoteHandler(false));
+    // mouseup a nivel WINDOW: si el usuario suelta el botón fuera del canvas,
+    // la nota se suelta igual (antes quedaba pegada hasta el mouseleave).
+    window.addEventListener('mouseup', pointerNoteHandler(false));
+    // Sólo soltamos la nota del MOUSE; las del teclado físico se gestionan con
+    // sus propios keyup y no deben cortarse por salir del canvas.
     keysCanvas.addEventListener('mouseleave', () => {
-      (window.pressedKeys || new Set()).forEach(n => handleNoteOff(n));
+      if (mouseNote != null) {
+        handleNoteOff(mouseNote);
+        mouseNote = null;
+      }
     });
     initTouchEvents(keysCanvas);
   }
@@ -130,8 +149,7 @@ export function initGlobalEvents() {
   document.querySelectorAll('[data-mode-btn]').forEach(btn => {
     btn.addEventListener('click', () => {
       const mode = btn.dataset.modeBtn;
-      window.appMode = mode;
-      applyMode(mode);
+      applyMode(mode);   // applyMode publica también window.appMode
     });
   });
 

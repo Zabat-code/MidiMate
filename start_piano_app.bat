@@ -7,7 +7,7 @@ REM   2. Instala dependencias si faltan (usa el .npmrc con include=dev)
 REM   3. Levanta el servidor de desarrollo (npm run dev) y abre el navegador
 REM ============================================================
 
-cd /d "%~dp0"
+cd /e "%~dp0"
 
 REM --- 1. Verificar Node ---
 where node >nul 2>nul

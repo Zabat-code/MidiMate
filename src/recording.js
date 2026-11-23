@@ -19,7 +19,7 @@
 import { CFG } from './config.js';
 import { actx, masterGain } from './audio.js';
 import { showToast } from './controls/playback.js';
-import { applyFlags } from './controls/drawer.js';
+import { applyFlags } from './drawer/flags.js';
 import { resizeCanvases } from './ui/canvas.js';
 
 export const RECORD_PRESETS = {

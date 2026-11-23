@@ -3,6 +3,7 @@
 // ============================================================
 
 import { CFG, saveConfig } from '../config.js';
+import { playlist, currentPlaylistIndex } from '../playlist-store.js';
 import { actx } from '../audio.js';
 import { song, togglePlay, stopPlayback, seekBy, silenceAll, updatePlayButtonLabel, updateLoopButton, setVolume, updateVolIcon, showToast, resyncAutoPlayback } from './playback.js';
 import { resizeCanvases } from '../ui/canvas.js';
@@ -68,8 +69,7 @@ export function initTransportEvents() {
     if (actx.state === 'suspended') actx.resume();
     // Si hay canciones en la lista de reproducción y ninguna está cargada
     // como activa, reproducir la lista (no la canción suelta).
-    if (window.playlist && window.playlist.length > 0 &&
-        (window.currentPlaylistIndex == null || window.currentPlaylistIndex < 0)) {
+    if (playlist.length > 0 && currentPlaylistIndex < 0) {
       if (window.loadPlaylistAt) { window.loadPlaylistAt(0, true); return; }
     }
     togglePlay();

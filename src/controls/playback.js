@@ -4,63 +4,53 @@
 
 import { CFG, saveConfig } from '../config.js';
 import { t } from '../i18.js';
-import { actx, masterGain, activeVoices, autoVoices, releaseVoice, playMetronomeClick } from '../audio.js';
-import { drawKeys } from '../ui/keys.js';
-import { drawRoll } from '../ui/roll.js';
-import { drawStaff } from '../ui/staff.js';
+import { actx, masterGain, activeVoices, autoVoices, releaseVoice, playMetronomeClick, startAutoVoice, stopAutoVoice } from '../audio.js';
+import { drawKeys, applyKeyboardRange } from '../ui/keys.js';
+import { playlist, currentPlaylistIndex, advanceToNextPlaylistTrack } from '../playlist-store.js';
+import { drawRoll, spawnKeyEffect } from '../ui/roll.js';
+import { drawStaff, chordName } from '../ui/staff.js';
 import { resizeCanvases } from '../ui/canvas.js';
-import { CHROMA_COLORS, currentTheme, applyModeFilter } from './drawer.js';
+import { CHROMA_COLORS, currentTheme } from '../drawer/themes.js';
+import { applyModeFilter } from '../drawer/layout.js';
+import { applyFlags } from '../drawer/flags.js';
 
 // ===== ESTADO =====
-export const song = {
-  notes: [],
-  duration: 0,
-  playing: false,
-  cursorTime: 0,
-  lastFrameTs: null,
-  speed: 1.0,
-  pendingGate: null,
-  bpm: 120,
-  countIn: null,
-  fileName: null
-};
+// El estado vive en song-state.js, que no importa nada. playback.js es el
+// centro del grafo de imports (lo importan audio.js, keys.js, roll.js, staff.js,
+// drawer.js, transport.js) y esos módulos también necesitan leer el estado, así
+// que tenerlo aquí los obligaba a usar window.*. Aquí se reexporta para no
+// cambiar los importadores que ya existían.
+export {
+  song, accuracy, trackSettings, freeNotes, appMode, prevCursorTime,
+  pressedKeys, autoPressedNotes, hitFeedback, sustainedNotes,
+  keyboardPedalDown, midiPedalDown,
+  setAppMode, setPrevCursorTime, setKeyboardPedalDown, setMidiPedalDown,
+  setKeepAllPreset, getKeepAllPreset, setMidiTracks, getMidiTracks
+} from '../song-state.js';
 
-export let accuracy = { hits: 0, total: 0 };
-export let appMode = 'free';
-export let freeNotes = [];
-export let trackSettings = {};
-export let prevCursorTime = 0;
-export function setPrevCursorTime(v) { prevCursorTime = v; }
-export let keyEffects = [];
-
-// ===== REFERENCIAS A ESTADO GLOBAL (inyectado) =====
-export let pressedKeys = new Set();
-export let autoPressedNotes = new Set();
-export let hitFeedback = new Map();
-export let sustainedNotes = new Set();
-export let keyboardPedalDown = false;
-export let midiPedalDown = false;
-
-export function setKeyboardPedalDown(value) {
-  keyboardPedalDown = value;
-}
-
-export function setMidiPedalDown(value) {
-  midiPedalDown = value;
-}
+import {
+  song, accuracy, trackSettings, freeNotes, appMode, prevCursorTime,
+  pressedKeys, autoPressedNotes, hitFeedback, sustainedNotes,
+  keyboardPedalDown, midiPedalDown,
+  setAppMode, setPrevCursorTime, setKeyboardPedalDown, setMidiPedalDown, setPlaybackInput
+} from '../song-state.js';
 
 export function setPlaybackState(pressed, auto, hit, sustained, keyboardPedal, midiPedal) {
-  pressedKeys = pressed;
-  autoPressedNotes = auto;
-  hitFeedback = hit;
-  sustainedNotes = sustained;
-  keyboardPedalDown = keyboardPedal;
-  midiPedalDown = midiPedal;
+  setPlaybackInput(pressed, auto, hit, sustained);
+  setKeyboardPedalDown(keyboardPedal);
+  setMidiPedalDown(midiPedal);
 }
 
 // ===== FUNCIONES EXPORTADAS =====
+// applyMode es la ÚNICA vía para cambiar de modo. Mantiene a la vez el binding
+// del módulo y el global, porque report.js y api-integration.js leen
+// window.appMode. Antes cada llamador hacía su propio `window.appMode = mode`
+// y luego llamaba a applyMode: tres sitios que dependían de esa convención, y
+// playlist.js incluso usaba `window.applyMode?.()`, que se pierde en silencio
+// si el global todavía no está publicado.
 export function applyMode(mode) {
-  appMode = mode;
+  setAppMode(mode);
+  window.appMode = mode;
   document.querySelectorAll('[data-mode-btn]').forEach(b => {
     b.classList.toggle('active-mode', b.dataset.modeBtn === mode);
   });
@@ -75,18 +65,17 @@ export function applyMode(mode) {
     btn?.classList.add('attention-blink');
     setTimeout(() => btn?.classList.remove('attention-blink'), 2000);
   }
-  window.applyFlags?.();
+  applyFlags();
   applyModeFilter(mode);
 }
 
-export function showToast(msg) {
-  const el = document.getElementById('toast');
-  if (!el) return;
-  el.textContent = msg;
-  el.classList.add('show');
-  clearTimeout(window._toastTimer);
-  window._toastTimer = setTimeout(() => el.classList.remove('show'), CFG.toastDuration * 1000);
-}
+// Reexportado: playback.js lo usa a diario y main.js lo publica, pero la
+// implementación es de toast.js para que audio.js también lo alcance.
+// Ojo: un `export ... from` NO crea un binding local. Sin el import de abajo,
+// los showToast() de mute/volumen de este fichero se resolvían por el global
+// que publica main.js, y sólo en runtime, y sólo al fallar.
+import { showToast } from '../toast.js';
+export { showToast };
 
 // ===== PLAY/PAUSE =====
 export function togglePlay() {
@@ -129,7 +118,7 @@ export function togglePlay() {
       song.playing = true;
       switchToAutoKeyRange();
       song.lastFrameTs = null;
-      window.metroNextTime = null;
+      metroNextTime = null;
       updatePlayButtonLabel();
       resetMouseIdle();
       console.log('[DEBUG] reproduce sin espera');
@@ -156,7 +145,7 @@ export function togglePlay() {
   song.playing = true;
   switchToAutoKeyRange();
   song.lastFrameTs = null;
-  window.metroNextTime = null;
+  metroNextTime = null;
   updatePlayButtonLabel();
   resetMouseIdle();
   console.log('[DEBUG] reproduce directo');
@@ -170,7 +159,7 @@ function switchToAutoKeyRange() {
     if (CFG.visibleKeyCount !== 'opt5' && CFG.visibleKeyCount !== 'auto') {
       CFG.visibleKeyCount = 'opt5';
       saveConfig();
-      window.applyKeyboardRange && window.applyKeyboardRange();
+      applyKeyboardRange();
     }
   } catch (e) { console.warn('switchToAutoKeyRange:', e); }
 }
@@ -186,10 +175,10 @@ export function stopPlayback() {
   // Restaura los presets originales de la canción tras el override temporal
   // "aplicar instrumento a todas las pistas", a menos que el toggle
   // "mantener" esté activo (en ese caso el override persiste).
-  if (song.__origPresets && !window.__keepAllPreset) {
+  if (song.__origPresets && !keepAllPreset) {
     for (const k in song.__origPresets) {
-      if (!window.trackSettings[k]) window.trackSettings[k] = {};
-      window.trackSettings[k].preset = song.__origPresets[k];
+      if (!trackSettings[k]) trackSettings[k] = {};
+      trackSettings[k].preset = song.__origPresets[k];
     }
     song.__origPresets = null;
     song.__tempPreset = null;
@@ -209,14 +198,14 @@ export function silenceAll() {
   pressedKeys.clear();
   sustainedNotes.clear();
   autoPressedNotes.clear();
-  prevCursorTime = song.cursorTime;
-  if (window._autoEndTimes) window._autoEndTimes.clear();
+  setPrevCursorTime(song.cursorTime);
+  autoEndTimes.clear();
 }
 
 export function resyncAutoPlayback() {
-  prevCursorTime = song.cursorTime;
+  setPrevCursorTime(song.cursorTime);
   autoVoices.forEach((v, k) => releaseVoice(autoVoices, k));
-  if (window._autoEndTimes) window._autoEndTimes.clear();
+  autoEndTimes.clear();
 }
 
 // ===== UPDATE UI =====
@@ -326,16 +315,16 @@ export function currentGateNotes(tt) {
 }
 
 let metroNextTime = null;
+const autoEndTimes = new Map();
 
 export function scheduleAutoPlayback() {
-  if (!song.playing) { prevCursorTime = song.cursorTime; return; }
+  if (!song.playing) { setPrevCursorTime(song.cursorTime); return; }
   const from = prevCursorTime,
     to = song.cursorTime;
-  if (to < from) { prevCursorTime = to; return; }
+  if (to < from) { setPrevCursorTime(to); return; }
 
   const humanizeOpts = CFG.humanize;
   const swingOpts = CFG.swing;
-  const trackSettings = window.trackSettings || {};
 
   song.notes.forEach(n => {
     const cfg = trackSettings[n.track];
@@ -377,25 +366,25 @@ export function scheduleAutoPlayback() {
       }
       const duration = n.end - n.start;
       const endTime = tStart + duration;
-      window._autoEndTimes.set(key, { end: endTime, note: n.note });
+      autoEndTimes.set(key, { end: endTime, note: n.note });
     }
 
-    if (window._autoEndTimes.has(n.track + '|' + n.note)) {
-      const entry = window._autoEndTimes.get(n.track + '|' + n.note);
+    if (autoEndTimes.has(n.track + '|' + n.note)) {
+      const entry = autoEndTimes.get(n.track + '|' + n.note);
       if (entry && entry.end <= to) {
         stopAutoVoice(n.track + '|' + n.note);
         autoPressedNotes.delete(entry.note);
-        window._autoEndTimes.delete(n.track + '|' + n.note);
+        autoEndTimes.delete(n.track + '|' + n.note);
       }
     }
   });
 
-  prevCursorTime = to;
+  setPrevCursorTime(to);
 }
 
 // ===== BUCLE PRINCIPAL =====
 export function startPlaybackLoop() {
-  window._autoEndTimes = new Map();
+  autoEndTimes.clear();
   metroNextTime = null;
   requestAnimationFrame(frame);
 }
@@ -489,13 +478,13 @@ function frameInner(ts) {
       song.cursorTime += dt * song.speed;
     }
     if (song.cursorTime > song.duration + 1) {
-      if (CFG.flags.loopSong.value && window.playlist && window.playlist.length > 0) {
-        window.playNextFromPlaylist();
+      if (CFG.flags.loopSong.value && playlist.length > 0) {
+        advanceToNextPlaylistTrack();
         song.cursorTime = 0;
         song.pendingGate = null;
         resyncAutoPlayback();
         if (!song.playing) {
-          showToast(`Siguiente: ${window.playlist[window.currentPlaylistIndex]?.name || ''}`);
+          showToast(`Siguiente: ${playlist[currentPlaylistIndex]?.name || ''}`);
         }
       } else if (CFG.flags.loopSong.value) {
         song.cursorTime = 0;
@@ -505,8 +494,8 @@ function frameInner(ts) {
         song.playing = false;
         updatePlayButtonLabel();
         // Automatically play the next song in the playlist if it exists
-        if (window.playlist && window.playlist.length > 0 && window.currentPlaylistIndex >= 0 && window.currentPlaylistIndex < window.playlist.length - 1) {
-          window.playNextFromPlaylist();
+        if (playlist.length > 0 && currentPlaylistIndex >= 0 && currentPlaylistIndex < playlist.length - 1) {
+          advanceToNextPlaylistTrack();
         }
       }
     }
@@ -570,7 +559,7 @@ function updateChordBadge() {
     return;
   }
   const sounding = new Set([...pressedKeys, ...autoPressedNotes]);
-  const name = window.chordName ? window.chordName(sounding) : '';
+  const name = chordName(sounding);
   if (name === _lastChordText) return;
   _lastChordText = name;
   if (!name) {
@@ -607,13 +596,7 @@ function applySwing(time, swingAmount) {
   return time;
 }
 
-// ===== REFERENCIAS A UI Y AUDIO =====
-function startAutoVoice(key, preset, note, velocity, mixParams) {
-  if (window.startAutoVoice) window.startAutoVoice(key, preset, note, velocity, mixParams);
-}
-function stopAutoVoice(key) {
-  if (window.stopAutoVoice) window.stopAutoVoice(key);
-}
-function spawnKeyEffect(note, rgb, chromaColor) {
-  if (window.spawnKeyEffect) window.spawnKeyEffect(note, rgb, chromaColor);
-}
+// Las voces y los efectos de tecla se consumen por import directo desde
+// audio.js y roll.js. Antes eran wrappers que delegaban en window.*, así que
+// dependían de que main.js ya hubiera publicado esos globales; si el módulo se
+// evaluaba antes, las llamadas se perdían en silencio.

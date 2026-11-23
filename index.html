@@ -32,7 +32,10 @@
       <select id="midiIn" data-ctrl="midiIn" title="MIDI"><option value="" data-i18n="noMidiDevice">Sin dispositivo MIDI</option></select>
       <label class="chip" data-ctrl="tempo" title="Velocidad"><span class="tempo-icon">⏱</span> <input type="range" id="tempo" min="25" max="300" value="100"> <input type="number" id="tempoNum" min="25" max="300" value="100" style="width:52px;">%</label>
       <label class="chip" data-ctrl="volume"><span id="volIcon">🔊</span> <input type="range" id="volume" min="0" max="300" value="80"> <input type="number" id="volumeNum" min="0" max="300" value="80" style="width:52px;">%</label>
-      <button id="btnFullscreen" class="icon-square" data-ctrl="fullscreen" title="Fullscreen">⛶</button>
+      <button id="btnConnectAPI" class="icon-square" data-ctrl="connectApi" title="Conectar a Midiforja API">🔌</button>
+  <span id="apiConnectionStatus" style="font-size:10px;color:#888;margin-left:4px;">○</span>
+  <button id="btnMini" class="icon-square" data-ctrl="mini" title="Mini-reproductor (N)">🗕</button>
+  <button id="btnFullscreen" class="icon-square" data-ctrl="fullscreen" title="Fullscreen">⛶</button>
       <button id="btnRecordToggle" class="icon-square" data-ctrl="record" title="Grabar video (R)">⏺</button>
       <span id="recordingIndicator" style="display:none; align-items:center; gap:6px; color:#ff5555; font-size:12px; font-weight:700;">
         <span style="width:9px; height:9px; border-radius:50%; background:#ff5555; animation:recordPulse 1s infinite;"></span>
@@ -64,6 +67,21 @@
   </main>
 
   <div id="toast"></div>
+  <div id="miniPlayer">
+    <div class="mini-head" id="miniHead">
+      <span class="mini-dot"></span>
+      <span id="miniTitle">—</span>
+      <button class="mini-x" id="miniRestore" title="Restaurar">⤢</button>
+    </div>
+    <div id="miniTime">0:00 / 0:00</div>
+    <div id="miniBar"><div id="miniBarFill"></div></div>
+    <div id="miniControls">
+      <button class="icon-square" id="miniRewind" title="-5s">⏪</button>
+      <button class="icon-square primary" id="miniPlay" title="Play/Pause">▶</button>
+      <button class="icon-square" id="miniForward" title="+5s">⏩</button>
+      <button class="icon-square" id="miniStop" title="Stop">⏹</button>
+    </div>
+  </div>
   <div id="floatSettings" title="Settings">⚙</div>
 
   <div id="modePromptModal">
@@ -385,6 +403,11 @@
           <h2 data-i18n="sectionPlaylist">Lista de reproducción</h2>
           <button id="btnAddToPlaylist" style="align-self:flex-start; margin-bottom:6px;">➕ Añadir a lista</button>
           <div id="playlistContainer" style="background: rgba(0,0,0,0.2); border-radius: 6px; padding: 8px; max-height: 300px; overflow-y: auto;"></div>
+          <div style="display:flex; gap:6px; margin-top:8px;">
+            <button id="btnConfigExportJson" style="align-self:flex-start;">⬇ Exportar config + lista</button>
+            <button id="btnConfigImportJson" style="align-self:flex-start;">⬆ Importar config + lista</button>
+            <input type="file" id="configImportJsonFile" accept="application/json,.json" style="display:none;">
+          </div>
           <div style="font-size:11px; color:var(--ivory-dim); margin:6px 0;" data-i18n="playlistReorderHint">
             Arrastra las pistas o usa los botones ▲/▼ para cambiar el orden de reproducción.
           </div>

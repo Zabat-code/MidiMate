@@ -1,0 +1,36 @@
+# PENDIENTES — MidiMate (se actualiza cada vez que se trabaja)
+Última edición: 2026-08-18. Piano/MIDI trainer (Vite web-audio).
+
+## ESTADO (2026-08-18, revisión profunda)
+- Build Vite: OK (0 errores, 24 módulos transformados, ~906ms).
+- 10 reps_*.json: válidos (datos de ejercicios/lecciones).
+- Estructura: Midimate/ (app Vite actual), MidiMate-web/ (protos HTML
+  estáticos viejos: "ULTIMA VERSION C-D/CLAUDE.html"), midiforja_inbox/
+  (midiforja_output.mid = integración con Midiforja).
+- Sin errores de código. Es pulido, no bug.
+
+## CONSOLE.LOG — ANALIZADOS (no borrar, solo filtrar al subir a dev)
+Total: 23. Categorías:
+- 11 DEBUG PURO (NO deben ir a dev/prod):
+  * audio.js [Realistic] x7: cache hit, cargando, cargada, reproduciendo,
+    fallback a sintetizador.
+  * playback.js [DEBUG] x4: togglePlay, reproduce sin espera/directo/tras count-in.
+- 12 WARN/ERROR RUNTIME (SÍ mantener, avisan de fallos reales):
+  * audio.js: ❌ error carga muestra, ⚠ muestra no disponible.
+  * config.js: ⚠ no pudo guardar config.
+  * playback.js: ⚠ switchToAutoKeyRange, ❌ frame() error.
+  * main.js: 🎹 start, ✅ app iniciada, ❌ fallo paso de inicio, ⚠ no pudo
+    iniciar audio.
+  * recording.js: ⚠ drawImage falló, ⚠ resize falló, ⚠ no capturó audio,
+    ❌ MediaRecorder error.
+  * report.js: ❌ wrapper error genérico.
+
+## PENDIENTE DECISIÓN (aislado, ver con Zabat)
+- [ ] Al subir a dev/prod: filtrar los 11 debug ([Realistic], [DEBUG]) para que
+      no lleguen. Opción A: borrarlos. Opción B: envolver en
+      `if (import.meta.env.DEV)` para que solo salgan en `npm run dev` local.
+      Los 12 warn/error SÍ quedan. -> Aislado hasta que Zabat decida.
+
+## LOG DE CAMBIOS
+- 2026-08-18: revisión profunda (build OK, JSON OK, 23 logs analizados).
+  Pendiente filtrar 11 debug al subir a dev. Creado este archivo.
