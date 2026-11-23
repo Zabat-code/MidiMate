@@ -58,14 +58,13 @@ describe('superficie pública de window', () => {
     await import('../main.js');
   });
 
-  it('publica lo que api-integration.js y el reporte necesitan', () => {
-    // Esta lista no es decorativa: son los siete globals que api-integration.js
-    // lee, más el estado que el monolito y ?api=1 tocan por fuera. Si uno falta,
-    // la integración externa se rompe en silencio.
+  it('publica lo que el reporte y el monolito necesitan', () => {
+    // Esta lista no es decorativa: son los globals que el reporte y el
+    // monolito leen desde fuera. Si uno falta, algo se rompe en silencio.
     const requeridos = [
       'appMode', 'handleNoteOff', 'handleNoteOn', 'setPlaybackState',
-      'showToast', 'song', 'CFG', 'saveConfig', 'midimateAPI',
-      'initAPIIntegration', 'applyMode', 'frame', 'startPlaybackLoop',
+      'showToast', 'song', 'CFG', 'saveConfig',
+      'applyMode', 'frame', 'startPlaybackLoop',
     ];
     const faltan = requeridos.filter(n => window[n] === undefined);
     expect(faltan).toEqual([]);

@@ -10,7 +10,6 @@ import { t } from '../i18.js';
 
 export const CTRL_META = {
   play: 'ctrlPlay',
-  connectApi: 'ctrlConnectApi',
   transport: 'ctrlTransport',
   midiIn: 'ctrlMidiIn',
   tempo: 'ctrlTempo',

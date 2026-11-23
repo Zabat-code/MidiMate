@@ -84,7 +84,6 @@ export const DEFAULTS = {
   },
   controlVisibility: {
     play: true,
-    connectApi: true,
     transport: true,
     midiIn: true,
     tempo: true,

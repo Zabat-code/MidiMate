@@ -3,8 +3,8 @@
 //
 // Este fichero hace tres cosas y sólo tres:
 //   1. Importa cada módulo una vez, para que exista un único grafo de dependencias.
-//   2. Publica en window la superficie que el exterior espera (api-integration,
-//      reporte, ?api=1, y el monolito). Ver el bloque "EXPOSICIÓN A window".
+//   2. Publica en window la superficie que el exterior espera (reporte y
+//      monolito). Ver el bloque "EXPOSICIÓN A window".
 //   3. Arranca la app en pasos, cada uno aislado, para que un fallo en un panel
 //      no impida que el resto funcione.
 //
@@ -82,16 +82,6 @@ import { initPlaylistIO } from './playlist-io.js';
 import {
   initRecordingUI
 } from './recording.js';
-
-// Cliente API
-import {
-  midimateAPI
-} from './api.js';
-
-// Integración API
-import {
-  initAPIIntegration
-} from './api-integration.js';
 
 // Audio
 import {
@@ -253,10 +243,9 @@ setKeymapPanelBuilder(buildKeymapPanel);
 
 // ===== EXPOSICIÓN A window =====
 //
-// Esta superficie es deliberada: api-integration.js, el reporte y el
-// ?api=1 de la URL leen de window, y el monolito también. No es deuda que
-// haya que eliminar de golpe, pero a partir de aquí los módulos NO deben
-// escribir en window: leen del store o se importan entre sí.
+// Esta superficie es deliberada: el reporte y el monolito la leen de window.
+// A partir de aquí los módulos NO deben escribir en window: leen del store
+// o se importan entre sí.
 //
 // Ojo con el orden: se publica después de importar todo para que ningún
 // paso de arranque encuentre un undefined.
@@ -526,20 +515,4 @@ if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', init);
 } else {
   init();
-}
-
-// =====================================================================
-// API EXTERNA
-// =====================================================================
-
-window.midimateAPI = midimateAPI;
-window.initAPIIntegration = initAPIIntegration;
-
-function initializeAPIBridge() {
-  initAPIIntegration({ autoConnect: new URLSearchParams(location.search).get('api') === '1' });
-}
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', initializeAPIBridge, { once: true });
-} else {
-  initializeAPIBridge();
 }

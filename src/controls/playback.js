@@ -43,7 +43,7 @@ export function setPlaybackState(pressed, auto, hit, sustained, keyboardPedal, m
 
 // ===== FUNCIONES EXPORTADAS =====
 // applyMode es la ÚNICA vía para cambiar de modo. Mantiene a la vez el binding
-// del módulo y el global, porque report.js y api-integration.js leen
+// del módulo y el global, porque report.js lee
 // window.appMode. Antes cada llamador hacía su propio `window.appMode = mode`
 // y luego llamaba a applyMode: tres sitios que dependían de esa convención, y
 // playlist.js incluso usaba `window.applyMode?.()`, que se pierde en silencio

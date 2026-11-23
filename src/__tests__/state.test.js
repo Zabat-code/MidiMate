@@ -76,7 +76,7 @@ describe('applyMode es la única vía para cambiar de modo', () => {
     for (const mode of ['practice', 'watch', 'free']) {
       applyMode(mode);
       expect(appMode).toBe(mode);
-      // report.js y api-integration.js leen el global, no el binding.
+      // report.js lee el global, no el binding.
       expect(window.appMode).toBe(mode);
     }
   });

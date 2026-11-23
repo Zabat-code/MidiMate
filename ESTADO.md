@@ -4,6 +4,11 @@ Autorreferencia de lo hecho en `src/`, de los bugs encontrados y de lo que
 queda. Actualizado 2026-09-28. Para lo de Midiforja, ver
 `../Midiforja/REVISION_MIDIFORJA.md`; para el single-file, `../MidiMate-web/README.md`.
 
+> Actualización 2026-11-23: se eliminó la integración con Midiforja (botón
+> "Conectar a Midiforja API", cliente REST/WebSocket y bridge). Midiforja no
+> forma parte del paquete y la conexión no funcionaba. Las menciones
+> anteriores a la integración son históricas.
+
 App de piano en Vite (JS a pelo, sin framework) con Vitest. 9170 líneas en 48
 ficheros, 58 tests en 10 ficheros, build en verde.
 

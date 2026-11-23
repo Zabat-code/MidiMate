@@ -38,7 +38,7 @@ export const trackSettings = {};
 export const freeNotes = [];
 
 // Modo actual. Lo cambia applyMode() (playback.js), que además publica
-// window.appMode porque report.js y api-integration.js lo leen.
+// window.appMode porque report.js lo lee.
 export let appMode = 'free';
 export function setAppMode(mode) { appMode = mode; }
 
