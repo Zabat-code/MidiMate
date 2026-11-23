@@ -10,10 +10,11 @@ import { actx } from './context.js';
 import { resolveSampleSource } from './voice-source.js';
 import { synthesize } from './voice-synth.js';
 import { buildTrackChain } from './voice-effects.js';
+import { lowNoteBoost } from './loudness.js';
 
 export function makeVoice(preset, note, velocity, mixParams) {
   mixParams = mixParams || { volume: 1, pan: 0, detune: 0, reverb: 0, eq: { low: 0, mid: 0, high: 0 } };
-  const vol = Math.min(0.28, (velocity / 127) * 0.32);
+  const vol = Math.min(0.40, Math.min(0.28, (velocity / 127) * 0.32) * lowNoteBoost(note));
   const now = actx.currentTime;
 
   const sample = resolveSampleSource(preset, note);

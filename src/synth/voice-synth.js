@@ -58,6 +58,14 @@ export function synthesize(preset, note, vol, now) {
     oscs.push(src);
   }
 
+  // Notas muy graves (por debajo de C#3): armónicos en 2x y 3x. El
+  // fundamental de C2 (65 Hz) no existe en altavoces pequeños; estos
+  // armónicos sí se reproducen y devuelven la sensación de tono.
+  if (note < 49) {
+    osc('triangle', 2, 0, 0.16);
+    osc('sine', 3, 0, 0.07);
+  }
+
   // ===== PRESETS =====
   if (preset === 'piano') {
     osc('triangle', 1, 0, 1);

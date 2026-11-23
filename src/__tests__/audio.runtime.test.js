@@ -109,6 +109,18 @@ describe('audio runtime (regression of the Proxy bug in connect)', () => {
     expect(connectLog).toContain(audio.reverbBus);
   });
 
+  it('las notas muy graves añaden armónicos audibles en altavoces pequeños', async () => {
+    const { loadConfig } = await import('../config.js');
+    loadConfig();
+    const audio = await import('../audio.js');
+    audio.ensureAudio();
+    const mix = { volume: 1, pan: 0, detune: 0, reverb: 0, eq: { low: 0, mid: 0, high: 0 } };
+
+    const low = audio.makeVoice('piano', 36, 100, mix);
+    const high = audio.makeVoice('piano', 84, 100, mix);
+    expect(low.oscs.length).toBe(high.oscs.length + 2);
+  });
+
   it('actx sigue siendo un Proxy (lazy) pero delega a un contexto real', async () => {
     const audio = await import('../audio.js');
     const ctx = audio.ensureAudio();
